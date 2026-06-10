@@ -16,6 +16,7 @@ import com.telemed.model.repository.UserRepository;
 import com.telemed.service.ConsultationService;
 import com.telemed.service.MinioService;
 import com.telemed.service.SignalingService;
+import com.telemed.service.AppointmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final UserRepository userRepository;
+    private final AppointmentService appointmentService;
 
     @Override
     @Transactional
@@ -100,6 +102,8 @@ public class ConsultationServiceImpl implements ConsultationService {
             conclusion.setFileUrl(fileUrl);
             consultationConclusionRepository.save(conclusion);
         }
+
+        appointmentService.completeAppointmentByConsultationId(consultation.getId());
 
         return consultation;
     }

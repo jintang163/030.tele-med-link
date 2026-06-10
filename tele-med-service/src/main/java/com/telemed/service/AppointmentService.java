@@ -9,9 +9,13 @@ public interface AppointmentService {
 
     Appointment createAppointment(Long patientId, Long doctorId, LocalDate date, Integer timeSlot, String description);
 
+    Appointment confirmAppointment(Long appointmentId, Long doctorId);
+
     Appointment cancelAppointment(Long appointmentId, Long patientId);
 
     Appointment startAppointment(Long appointmentId, Long doctorId);
+
+    void completeAppointmentByConsultationId(Long consultationId);
 
     List<Appointment> getPatientAppointments(Long patientId);
 

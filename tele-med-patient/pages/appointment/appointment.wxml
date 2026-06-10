@@ -58,7 +58,7 @@
         <text class="appointment-date">{{item.appointmentDate}} {{item.timeSlot === 0 ? '上午' : '下午'}}</text>
         <text class="appointment-desc">{{item.description}}</text>
       </view>
-      <view class="appointment-actions" wx:if="{{item.status === 0}}">
+      <view class="appointment-actions" wx:if="{{item.canCancel}}">
         <view class="btn-cancel" bindtap="cancelAppointment" data-id="{{item.id}}">取消预约</view>
       </view>
     </view>

@@ -52,11 +52,13 @@ Page({
           var statusMap = {
             0: '待确认',
             1: '已确认',
-            2: '已完成',
-            3: '已取消'
+            2: '已取消',
+            3: '已完成',
+            4: '进行中'
           };
           item.statusText = statusMap[item.status] || '未知';
           item.timeSlotDesc = item.timeSlot === 0 ? '上午' : '下午';
+          item.canCancel = item.status === 0 || item.status === 1;
           return item;
         });
         that.setData({

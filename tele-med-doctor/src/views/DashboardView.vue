@@ -94,8 +94,9 @@ const statusTagType = (status: number) => {
   const map: Record<number, string> = {
     0: 'warning',
     1: 'primary',
-    2: 'success',
-    3: 'info'
+    2: 'info',
+    3: 'success',
+    4: 'danger'
   }
   return map[status] || 'info'
 }
@@ -104,8 +105,9 @@ const statusLabel = (status: number) => {
   const map: Record<number, string> = {
     0: '待确认',
     1: '已确认',
-    2: '已完成',
-    3: '已取消'
+    2: '已取消',
+    3: '已完成',
+    4: '进行中'
   }
   return map[status] || '未知'
 }

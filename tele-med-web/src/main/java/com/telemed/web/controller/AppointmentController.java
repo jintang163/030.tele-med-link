@@ -24,6 +24,12 @@ public class AppointmentController {
         return Result.ok(appointment);
     }
 
+    @PostMapping("/confirm")
+    public Result<Appointment> confirm(@RequestParam Long appointmentId, @RequestParam Long doctorId) {
+        Appointment appointment = appointmentService.confirmAppointment(appointmentId, doctorId);
+        return Result.ok(appointment);
+    }
+
     @PostMapping("/cancel")
     public Result<Appointment> cancel(@RequestParam Long appointmentId, @RequestParam Long patientId) {
         Appointment appointment = appointmentService.cancelAppointment(appointmentId, patientId);
