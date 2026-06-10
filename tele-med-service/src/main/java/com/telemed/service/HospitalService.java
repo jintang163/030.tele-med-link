@@ -11,7 +11,21 @@ public interface HospitalService {
 
     Hospital getHospitalById(Long id);
 
+    Hospital createHospital(Hospital hospital);
+
+    Hospital updateHospital(Hospital hospital);
+
+    void deleteHospital(Long id);
+
     List<Campus> getCampusesByHospitalId(Long hospitalId);
 
+    List<Campus> getCampusesByHospital(Long hospitalId);
+
     Campus getCampusById(Long id);
+
+    Campus createCampus(Campus campus);
+
+    Campus updateCampus(Campus campus);
+
+    void deleteCampus(Long id);
 }

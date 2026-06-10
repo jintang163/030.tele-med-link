@@ -1,4 +1,12 @@
 <view class="container">
+  <view class="campus-selector" bindtap="showCampusPicker">
+    <view class="campus-info">
+      <text class="campus-icon">🏥</text>
+      <text class="campus-name">{{campusName || '请选择院区'}}</text>
+      <text class="campus-arrow">▼</text>
+    </view>
+  </view>
+
   <view class="user-header">
     <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"></image>
     <view class="user-info">
@@ -44,5 +52,28 @@
 
   <view class="empty-tip" wx:else>
     <text>暂无会诊记录</text>
+  </view>
+
+  <view class="campus-picker-mask" wx:if="{{showCampusPicker}}" bindtap="hideCampusPicker"></view>
+  <view class="campus-picker" wx:if="{{showCampusPicker}}">
+    <view class="picker-header">
+      <text class="picker-cancel" bindtap="hideCampusPicker">取消</text>
+      <text class="picker-title">选择院区</text>
+      <text class="picker-confirm" bindtap="confirmCampusSelection">确定</text>
+    </view>
+    <view class="picker-body">
+      <view class="picker-column">
+        <text class="column-title">医院</text>
+        <picker mode="selector" range="{{hospitals}}" range-key="name" value="{{selectedHospitalIndex}}" bindchange="onHospitalChange">
+          <view class="picker-item">{{hospitalName || '请选择医院'}}</view>
+        </picker>
+      </view>
+      <view class="picker-column">
+        <text class="column-title">院区</text>
+        <picker mode="selector" range="{{campuses}}" range-key="name" value="{{selectedCampusIndex}}" bindchange="onCampusChange">
+          <view class="picker-item">{{campusName || '请选择院区'}}</view>
+        </picker>
+      </view>
+    </view>
   </view>
 </view>

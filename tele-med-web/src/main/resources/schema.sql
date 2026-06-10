@@ -73,6 +73,21 @@ CREATE TABLE t_patient (
     FOREIGN KEY (user_id) REFERENCES t_user(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE t_department (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id BIGINT NOT NULL,
+    campus_id BIGINT,
+    name VARCHAR(64) NOT NULL,
+    description VARCHAR(256),
+    sort_order INT DEFAULT 0,
+    status INT DEFAULT 1,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (hospital_id) REFERENCES t_hospital(id),
+    INDEX idx_hospital_id (hospital_id),
+    INDEX idx_campus_id (campus_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE t_consultation (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     consultation_no VARCHAR(64) NOT NULL UNIQUE,
@@ -144,6 +159,15 @@ INSERT INTO t_campus (hospital_id, name, address, phone) VALUES
 (1, '西院区', '北京市西城区康复街20号', '010-88888002'),
 (2, '主院区', '北京市海淀区学院路50号', '010-66666001');
 
+INSERT INTO t_department (hospital_id, campus_id, name, description, sort_order) VALUES
+(1, 1, '心血管内科', '心血管疾病诊治', 1),
+(1, 1, '呼吸内科', '呼吸系统疾病', 2),
+(1, 1, '消化内科', '消化系统疾病', 3),
+(1, 2, '普外科', '普通外科手术', 1),
+(1, 2, '骨科', '骨科疾病诊治', 2),
+(2, 3, '内科', '综合内科', 1),
+(2, 3, '外科', '综合外科', 2);
+
 INSERT INTO t_user (username, password, real_name, phone, role, hospital_id, department) VALUES
 ('doctor1', '123456', '张医生', '13800001111', 'DOCTOR', 1, '内科'),
 ('doctor2', '123456', '李医生', '13800002222', 'DOCTOR', 1, '外科'),
@@ -153,6 +177,9 @@ INSERT INTO t_doctor (user_id, title, specialty, department, hospital_id, campus
 (1, '主任医师', '心血管内科', '内科', 1, 1),
 (2, '副主任医师', '普外科', '外科', 1, 2),
 (3, '主治医师', '呼吸内科', '内科', 2, 3);
+
+INSERT INTO t_user (username, password, real_name, role) VALUES
+('admin', 'admin123', '系统管理员', 'ADMIN');
 
 INSERT INTO t_user (username, password, real_name, phone, role, open_id, hospital_id) VALUES
 ('patient1', '123456', '王患者', '13900001111', 'PATIENT', 'oTestOpenId001', 1),

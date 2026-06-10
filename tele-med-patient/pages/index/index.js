@@ -7,23 +7,142 @@ Page({
     patientId: null,
     recentConsultations: [],
     hospitals: [],
-    selectedHospitalIndex: 0
+    campuses: [],
+    hospitalId: null,
+    campusId: null,
+    hospitalName: '',
+    campusName: '',
+    selectedHospitalIndex: 0,
+    selectedCampusIndex: 0,
+    showCampusPicker: false
   },
 
   onLoad: function () {
+    this.loadHospitals();
     this.checkLogin();
   },
 
   onShow: function () {
+    var app = getApp();
     var userInfo = app.globalData.userInfo;
     var patientId = app.globalData.patientId;
+    var hospitalId = app.globalData.hospitalId;
+    var campusId = app.globalData.campusId;
+    var hospitalName = app.globalData.hospitalName;
+    var campusName = app.globalData.campusName;
     this.setData({
       userInfo: userInfo,
-      patientId: patientId
+      patientId: patientId,
+      hospitalId: hospitalId,
+      campusId: campusId,
+      hospitalName: hospitalName,
+      campusName: campusName
     });
     if (patientId) {
       this.loadRecentConsultations();
     }
+  },
+
+  loadHospitals: function () {
+    var that = this;
+    request.request({
+      url: '/hospital/list',
+      method: 'GET',
+      success: function (data) {
+        var hospitals = data || [];
+        that.setData({
+          hospitals: hospitals
+        });
+        if (hospitals.length > 0 && !that.data.hospitalId) {
+          var firstHospital = hospitals[0];
+          that.setData({
+            hospitalId: firstHospital.id,
+            hospitalName: firstHospital.name,
+            selectedHospitalIndex: 0
+          });
+          that.loadCampuses(firstHospital.id);
+        }
+      }
+    });
+  },
+
+  loadCampuses: function (hospitalId) {
+    var that = this;
+    request.request({
+      url: '/hospital/' + hospitalId + '/campuses',
+      method: 'GET',
+      success: function (data) {
+        var campuses = data || [];
+        that.setData({
+          campuses: campuses
+        });
+        if (campuses.length > 0 && !that.data.campusId) {
+          var firstCampus = campuses[0];
+          that.setData({
+            campusId: firstCampus.id,
+            campusName: firstCampus.name,
+            selectedCampusIndex: 0
+          });
+          that.saveCampusSelection();
+        }
+      }
+    });
+  },
+
+  showCampusPicker: function () {
+    this.setData({
+      showCampusPicker: true
+    });
+  },
+
+  hideCampusPicker: function () {
+    this.setData({
+      showCampusPicker: false
+    });
+  },
+
+  onHospitalChange: function (e) {
+    var index = e.detail.value;
+    var hospital = this.data.hospitals[index];
+    this.setData({
+      selectedHospitalIndex: index,
+      hospitalId: hospital.id,
+      hospitalName: hospital.name,
+      campuses: [],
+      campusId: null,
+      campusName: ''
+    });
+    this.loadCampuses(hospital.id);
+  },
+
+  onCampusChange: function (e) {
+    var index = e.detail.value;
+    var campus = this.data.campuses[index];
+    this.setData({
+      selectedCampusIndex: index,
+      campusId: campus.id,
+      campusName: campus.name
+    });
+  },
+
+  confirmCampusSelection: function () {
+    this.saveCampusSelection();
+    this.setData({
+      showCampusPicker: false
+    });
+    wx.showToast({ title: '院区已切换', icon: 'success' });
+  },
+
+  saveCampusSelection: function () {
+    var app = getApp();
+    app.globalData.hospitalId = this.data.hospitalId;
+    app.globalData.campusId = this.data.campusId;
+    app.globalData.hospitalName = this.data.hospitalName;
+    app.globalData.campusName = this.data.campusName;
+    wx.setStorageSync('hospitalId', this.data.hospitalId);
+    wx.setStorageSync('campusId', this.data.campusId);
+    wx.setStorageSync('hospitalName', this.data.hospitalName);
+    wx.setStorageSync('campusName', this.data.campusName);
   },
 
   checkLogin: function () {
