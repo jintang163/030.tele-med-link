@@ -1,0 +1,10 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "tele-med-patient",
+  "appid": "wx_placeholder_appid",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "urlCheck": false
+  }
+}

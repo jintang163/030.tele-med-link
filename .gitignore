@@ -27,12 +27,15 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Uploads
-dynamic-form-design-backend/uploads/
+# MinIO
+minio-data/
 
 # Docker
 *.pid
 *.seed
-code/
-.m2/
+
+# Trae
 .trae/
+
+# WeChat Mini Program
+miniprogram_npm/

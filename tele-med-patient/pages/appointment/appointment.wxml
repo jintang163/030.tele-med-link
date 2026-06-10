@@ -1,0 +1,70 @@
+<view class="container">
+  <view class="card form-card">
+    <view class="form-title">预约会诊</view>
+
+    <view class="form-item">
+      <text class="form-label">选择医生</text>
+      <picker class="form-picker" mode="selector" range="{{doctors}}" range-key="name" value="{{selectedDoctorIndex}}" bindchange="onDoctorChange">
+        <view class="picker-value">
+          {{doctors[selectedDoctorIndex].name || '请选择医生'}}
+          <text class="picker-arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">预约日期</text>
+      <picker class="form-picker" mode="date" value="{{appointmentDate}}" bindchange="onDateChange">
+        <view class="picker-value">
+          {{appointmentDate || '请选择日期'}}
+          <text class="picker-arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">时段</text>
+      <view class="time-slots">
+        <view class="time-slot {{timeSlotIndex === 0 ? 'active' : ''}}" bindtap="onTimeSlotChange" data-index="0">上午</view>
+        <view class="time-slot {{timeSlotIndex === 1 ? 'active' : ''}}" bindtap="onTimeSlotChange" data-index="1">下午</view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">病情描述</text>
+      <textarea
+        class="form-textarea"
+        placeholder="请简要描述您的病情..."
+        value="{{description}}"
+        bindinput="onDescriptionInput"
+        maxlength="500"
+      />
+    </view>
+
+    <view class="btn-primary" bindtap="submitAppointment">提交预约</view>
+  </view>
+
+  <view class="section-header">
+    <text class="section-title">我的预约</text>
+  </view>
+
+  <view class="appointment-list" wx:if="{{appointments.length > 0}}">
+    <view class="card appointment-item" wx:for="{{appointments}}" wx:key="id">
+      <view class="appointment-header">
+        <text class="appointment-doctor">{{item.doctorName}}</text>
+        <text class="appointment-status status-{{item.status}}">{{item.statusText}}</text>
+      </view>
+      <view class="appointment-detail">
+        <text class="appointment-date">{{item.appointmentDate}} {{item.timeSlot === 0 ? '上午' : '下午'}}</text>
+        <text class="appointment-desc">{{item.description}}</text>
+      </view>
+      <view class="appointment-actions" wx:if="{{item.status === 0}}">
+        <view class="btn-cancel" bindtap="cancelAppointment" data-id="{{item.id}}">取消预约</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-tip" wx:else>
+    <text>暂无预约记录</text>
+  </view>
+</view>

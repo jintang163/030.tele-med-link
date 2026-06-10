@@ -1,0 +1,163 @@
+.form-card {
+  padding: 32rpx 24rpx;
+}
+
+.form-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 32rpx;
+}
+
+.form-item {
+  margin-bottom: 28rpx;
+}
+
+.form-label {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+.form-picker {
+  width: 100%;
+}
+
+.picker-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx;
+  background: #f8f8f8;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.picker-arrow {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.time-slots {
+  display: flex;
+  gap: 20rpx;
+}
+
+.time-slot {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  background: #f8f8f8;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  color: #666;
+}
+
+.time-slot.active {
+  background: #e6f7ff;
+  color: #1890ff;
+  border: 2rpx solid #1890ff;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 160rpx;
+  padding: 20rpx;
+  background: #f8f8f8;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.section-header {
+  margin: 8rpx 0 16rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.appointment-item {
+  padding: 24rpx;
+}
+
+.appointment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.appointment-doctor {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.appointment-status {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  color: #fff;
+}
+
+.status-0 {
+  background: #faad14;
+}
+
+.status-1 {
+  background: #1890ff;
+}
+
+.status-2 {
+  background: #52c41a;
+}
+
+.status-3 {
+  background: #999;
+}
+
+.appointment-detail {
+  display: flex;
+  flex-direction: column;
+}
+
+.appointment-date {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.appointment-desc {
+  font-size: 24rpx;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-actions {
+  margin-top: 16rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 8rpx 32rpx;
+  border: 2rpx solid #ff4d4f;
+  color: #ff4d4f;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 80rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}

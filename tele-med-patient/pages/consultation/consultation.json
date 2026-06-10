@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "视频会诊",
+  "requiredPrivateInfos": ["live-pusher", "live-player"]
+}

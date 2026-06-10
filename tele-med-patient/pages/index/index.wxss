@@ -1,0 +1,155 @@
+.user-header {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  margin-right: 24rpx;
+  background: #e8e8e8;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.user-id {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.action-cards {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.action-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+.card-immediate {
+  margin-right: 16rpx;
+  border-left: 8rpx solid #1890ff;
+}
+
+.card-appointment {
+  margin-left: 16rpx;
+  border-left: 8rpx solid #52c41a;
+}
+
+.action-icon {
+  font-size: 56rpx;
+  margin-right: 20rpx;
+}
+
+.action-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.action-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.action-desc {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.section-header {
+  margin-bottom: 16rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.consultation-item {
+  padding: 24rpx;
+}
+
+.consultation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.consultation-no {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.consultation-status {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  color: #fff;
+}
+
+.status-0 {
+  background: #faad14;
+}
+
+.status-1 {
+  background: #1890ff;
+}
+
+.status-2 {
+  background: #52c41a;
+}
+
+.status-3 {
+  background: #ff4d4f;
+}
+
+.consultation-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.consultation-doctor {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.consultation-time {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 80rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}

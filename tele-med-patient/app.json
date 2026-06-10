@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/consultation/consultation",
+    "pages/appointment/appointment",
+    "pages/conclusion/conclusion"
+  ],
+  "window": {
+    "navigationBarTitleText": "远程会诊",
+    "navigationBarBackgroundColor": "#1890ff",
+    "navigationBarTextStyle": "white"
+  }
+}

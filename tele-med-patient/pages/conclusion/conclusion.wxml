@@ -1,0 +1,44 @@
+<view class="container">
+  <view class="card detail-card">
+    <view class="detail-title">会诊详情</view>
+
+    <view class="detail-row">
+      <text class="detail-label">会诊日期</text>
+      <text class="detail-value">{{consultation.createTime}}</text>
+    </view>
+
+    <view class="detail-row">
+      <text class="detail-label">会诊医生</text>
+      <text class="detail-value">{{consultation.doctorName}}</text>
+    </view>
+
+    <view class="detail-row">
+      <text class="detail-label">会诊时长</text>
+      <text class="detail-value">{{consultation.duration || '-'}}</text>
+    </view>
+
+    <view class="detail-row">
+      <text class="detail-label">会诊状态</text>
+      <text class="detail-value status-{{consultation.status}}">{{consultation.statusText}}</text>
+    </view>
+  </view>
+
+  <view class="card conclusion-card" wx:if="{{conclusion}}">
+    <view class="conclusion-title">会诊结论</view>
+
+    <view class="conclusion-content">
+      <text>{{conclusion.content || '暂无结论'}}</text>
+    </view>
+
+    <view class="conclusion-file" wx:if="{{conclusion.fileUrl}}">
+      <text class="file-label">附件：</text>
+      <view class="file-link" bindtap="openFile" data-url="{{conclusion.fileUrl}}">
+        <text>{{conclusion.fileName || '查看附件'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card empty-conclusion" wx:else>
+    <text class="empty-text">暂无会诊结论</text>
+  </view>
+</view>

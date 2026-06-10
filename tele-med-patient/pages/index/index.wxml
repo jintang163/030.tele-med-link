@@ -1,0 +1,48 @@
+<view class="container">
+  <view class="user-header">
+    <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"></image>
+    <view class="user-info">
+      <text class="user-name">{{userInfo.nickName || '未登录'}}</text>
+      <text class="user-id" wx:if="{{patientId}}">患者编号：{{patientId}}</text>
+    </view>
+  </view>
+
+  <view class="action-cards">
+    <view class="action-card card-immediate" bindtap="startImmediateConsultation">
+      <view class="action-icon">📹</view>
+      <view class="action-text">
+        <text class="action-title">立即会诊</text>
+        <text class="action-desc">发起即时视频会诊</text>
+      </view>
+    </view>
+
+    <view class="action-card card-appointment" bindtap="navigateToAppointment">
+      <view class="action-icon">📅</view>
+      <view class="action-text">
+        <text class="action-title">预约会诊</text>
+        <text class="action-desc">预约未来时段会诊</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-header">
+    <text class="section-title">我的会诊记录</text>
+  </view>
+
+  <view class="consultation-list" wx:if="{{recentConsultations.length > 0}}">
+    <view class="card consultation-item" wx:for="{{recentConsultations}}" wx:key="id" bindtap="viewConclusion" data-id="{{item.id}}">
+      <view class="consultation-header">
+        <text class="consultation-no">{{item.consultationNo}}</text>
+        <text class="consultation-status status-{{item.status}}">{{item.statusText}}</text>
+      </view>
+      <view class="consultation-body">
+        <text class="consultation-doctor">会诊医生：{{item.doctorName}}</text>
+        <text class="consultation-time">{{item.createTime}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-tip" wx:else>
+    <text>暂无会诊记录</text>
+  </view>
+</view>
