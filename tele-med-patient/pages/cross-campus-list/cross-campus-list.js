@@ -5,7 +5,8 @@ var statusMap = {
   0: '待确认',
   1: '进行中',
   2: '已完成',
-  3: '已取消'
+  3: '已取消',
+  4: '已确认'
 };
 
 Page({
@@ -44,25 +45,24 @@ Page({
 
     var status = null;
     if (this.data.activeTab === 'pending') status = 0;
-    else if (this.data.activeTab === 'confirmed') status = 1;
+    else if (this.data.activeTab === 'confirmed') status = 4;
     else if (this.data.activeTab === 'done') status = 2;
 
+    var url = '/cross-campus/consultation/patient/' + patientId;
+    if (status !== null) {
+      url += '?status=' + status;
+    }
+
     request.request({
-      url: '/consultation/patient/' + patientId,
+      url: url,
       method: 'GET',
       success: function (data) {
-        var list = (data || []).filter(function (item) {
-          return item.crossCampus === true;
-        }).map(function (item) {
+        var list = (data || []).map(function (item) {
           if (!item.statusText) {
             item.statusText = statusMap[item.status] || '未知';
           }
           return item;
         });
-
-        if (status !== null) {
-          list = list.filter(function (item) { return item.status === status; });
-        }
 
         list.sort(function (a, b) {
           return new Date(b.createTime) - new Date(a.createTime);

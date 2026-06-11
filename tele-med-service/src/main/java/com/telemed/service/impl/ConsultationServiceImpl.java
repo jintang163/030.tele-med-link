@@ -179,6 +179,12 @@ public class ConsultationServiceImpl implements ConsultationService {
         vo.setEndTime(consultation.getEndTime());
         vo.setDuration(consultation.getDuration());
         vo.setCreateTime(consultation.getCreateTime());
+        vo.setCrossCampus(consultation.getCrossCampus());
+        vo.setSourceCampusId(consultation.getSourceCampusId());
+        vo.setTargetCampusId(consultation.getTargetCampusId());
+        vo.setCampusTag(consultation.getCampusTag());
+        vo.setExpireTime(consultation.getExpireTime());
+        vo.setConfirmTime(consultation.getConfirmTime());
 
         Patient patient = patientRepository.findById(consultation.getPatientId()).orElse(null);
         if (patient != null) {
@@ -210,6 +216,7 @@ public class ConsultationServiceImpl implements ConsultationService {
             if (s.getCode() == status) {
                 return switch (s) {
                     case WAITING -> "等待中";
+                    case CONFIRMED -> "已确认";
                     case ONGOING -> "进行中";
                     case FINISHED -> "已完成";
                     case CANCELLED -> "已取消";

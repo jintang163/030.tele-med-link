@@ -95,6 +95,13 @@ public class CrossCampusConsultationController {
         return Result.ok(list);
     }
 
+    @GetMapping("/consultation/patient/{patientId}")
+    public Result<List<ConsultationVO>> patientList(@PathVariable Long patientId,
+                                                     @RequestParam(required = false) Integer status) {
+        List<ConsultationVO> list = crossCampusService.getPatientCrossCampusConsultations(patientId, status);
+        return Result.ok(list);
+    }
+
     @GetMapping("/schedule/doctor/{doctorId}")
     public Result<DoctorScheduleVO> doctorSchedule(@PathVariable Long doctorId,
                                                     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

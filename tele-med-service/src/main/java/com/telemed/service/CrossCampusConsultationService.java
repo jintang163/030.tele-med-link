@@ -31,6 +31,8 @@ public interface CrossCampusConsultationService {
 
     List<ConsultationVO> getCrossCampusByDoctorId(Long doctorId, Integer status);
 
+    List<ConsultationVO> getPatientCrossCampusConsultations(Long patientId, Integer status);
+
     ConsultationVO getCrossCampusDetail(Long consultationId);
 
     void cleanExpiredConsultations();

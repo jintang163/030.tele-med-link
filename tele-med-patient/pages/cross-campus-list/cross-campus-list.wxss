@@ -116,6 +116,10 @@
   background: linear-gradient(135deg, #8c8c8c, #bfbfbf);
 }
 
+.status-tag.status-4 {
+  background: linear-gradient(135deg, #722ed1, #9254de);
+}
+
 .item-body {
   padding: 16rpx 24rpx;
 }

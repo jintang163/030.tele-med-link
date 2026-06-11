@@ -169,7 +169,7 @@ public class CrossCampusConsultationServiceImpl implements CrossCampusConsultati
             return consultation;
         }
 
-        consultation.setStatus(ConsultationStatus.WAITING.getCode());
+        consultation.setStatus(ConsultationStatus.CONFIRMED.getCode());
         consultation.setConfirmTime(LocalDateTime.now());
         consultation = consultationRepository.save(consultation);
 
@@ -371,12 +371,25 @@ public class CrossCampusConsultationServiceImpl implements CrossCampusConsultati
     public List<ConsultationVO> getCrossCampusByDoctorId(Long doctorId, Integer status) {
         List<Integer> allStatuses = List.of(
                 ConsultationStatus.WAITING.getCode(),
+                ConsultationStatus.CONFIRMED.getCode(),
                 ConsultationStatus.ONGOING.getCode(),
                 ConsultationStatus.FINISHED.getCode(),
                 ConsultationStatus.CANCELLED.getCode()
         );
         List<Consultation> consultations = consultationRepository
                 .findCrossCampusByDoctorIdAndStatuses(doctorId, allStatuses);
+        if (status != null) {
+            consultations = consultations.stream()
+                    .filter(c -> c.getStatus().equals(status))
+                    .collect(Collectors.toList());
+        }
+        return consultations.stream().map(this::convertToCrossCampusVO).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ConsultationVO> getPatientCrossCampusConsultations(Long patientId, Integer status) {
+        List<Consultation> consultations = consultationRepository
+                .findByPatientIdAndCrossCampusTrueOrderByCreateTimeDesc(patientId);
         if (status != null) {
             consultations = consultations.stream()
                     .filter(c -> c.getStatus().equals(status))
@@ -401,13 +414,22 @@ public class CrossCampusConsultationServiceImpl implements CrossCampusConsultati
         );
 
         for (Consultation consultation : expired) {
+            if (consultation.getConfirmTime() != null) {
+                continue;
+            }
+            boolean hasConfirmedAppointment = appointmentRepository
+                    .findByConsultationId(consultation.getId()).stream()
+                    .anyMatch(a -> AppointmentStatus.CONFIRMED.getCode() == a.getStatus());
+            if (hasConfirmedAppointment) {
+                continue;
+            }
+
             consultation.setStatus(ConsultationStatus.CANCELLED.getCode());
             consultationRepository.save(consultation);
 
             List<Appointment> appointments = appointmentRepository.findByConsultationId(consultation.getId());
             for (Appointment appt : appointments) {
-                if (appt.getStatus() == AppointmentStatus.PENDING.getCode()
-                        || appt.getStatus() == AppointmentStatus.CONFIRMED.getCode()) {
+                if (appt.getStatus() == AppointmentStatus.PENDING.getCode()) {
                     appt.setStatus(AppointmentStatus.CANCELLED.getCode());
                     appointmentRepository.save(appt);
                 }
@@ -421,7 +443,8 @@ public class CrossCampusConsultationServiceImpl implements CrossCampusConsultati
                 LocalDateTime.now()
         );
         for (Appointment appt : expiredAppointments) {
-            if (appt.getStatus() != AppointmentStatus.CANCELLED.getCode()) {
+            if (appt.getStatus() != AppointmentStatus.CANCELLED.getCode()
+                    && appt.getStatus() != AppointmentStatus.CONFIRMED.getCode()) {
                 appt.setStatus(AppointmentStatus.CANCELLED.getCode());
                 appointmentRepository.save(appt);
                 log.info("清理超时未确认跨院区预约: appointmentId={}", appt.getId());
@@ -609,6 +632,7 @@ public class CrossCampusConsultationServiceImpl implements CrossCampusConsultati
             if (s.getCode() == status) {
                 return switch (s) {
                     case WAITING -> "待确认";
+                    case CONFIRMED -> "已确认";
                     case ONGOING -> "进行中";
                     case FINISHED -> "已完成";
                     case CANCELLED -> "已取消";

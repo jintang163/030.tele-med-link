@@ -33,10 +33,12 @@ public class CrossCampusNotifyProducer {
             String destination = CrossCampusConstants.MQ_TOPIC_CROSS_CAMPUS_NOTIFY;
             rocketMQTemplate.asyncSend(destination,
                     MessageBuilder.withPayload(notifyDTO).build(),
-                    new org.apache.rocketmq.spring.core.RocketMQLocalRequestCallback<CrossCampusNotifyDTO>() {
+                    new org.apache.rocketmq.spring.core.RocketMQLocalSendCallback() {
                         @Override
-                        public void onSuccess(CrossCampusNotifyDTO message) {
-                            log.info("异步发送跨院区会诊通知成功: consultationNo={}", notifyDTO.getConsultationNo());
+                        public void onSuccess(org.apache.rocketmq.client.producer.SendResult sendResult) {
+                            log.info("异步发送跨院区会诊通知成功: consultationNo={}, msgId={}",
+                                    notifyDTO.getConsultationNo(),
+                                    sendResult != null ? sendResult.getMsgId() : null);
                         }
 
                         @Override

@@ -5,7 +5,8 @@ public enum ConsultationStatus {
     WAITING(0),
     ONGOING(1),
     FINISHED(2),
-    CANCELLED(3);
+    CANCELLED(3),
+    CONFIRMED(4);
 
     private final int code;
 
