@@ -3,6 +3,7 @@ package com.telemed.common.vo;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class ConsultationVO {
@@ -44,4 +45,24 @@ public class ConsultationVO {
     private String conclusionContent;
 
     private String conclusionFileUrl;
+
+    private Boolean crossCampus;
+
+    private Long sourceCampusId;
+
+    private String sourceCampusName;
+
+    private Long targetCampusId;
+
+    private String targetCampusName;
+
+    private String campusTag;
+
+    private List<ConsultationDoctorVO> assistantDoctors;
+
+    private String primaryDoctorName;
+
+    private java.time.LocalDateTime expireTime;
+
+    private java.time.LocalDateTime confirmTime;
 }

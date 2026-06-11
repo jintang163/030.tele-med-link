@@ -40,5 +40,19 @@ public class AppointmentVO {
 
     private Long consultationId;
 
+    private Boolean crossCampus;
+
+    private Long campusId;
+
+    private String campusName;
+
+    private Long targetCampusId;
+
+    private String targetCampusName;
+
+    private String campusTag;
+
     private LocalDateTime createTime;
+
+    private LocalDateTime expireTime;
 }

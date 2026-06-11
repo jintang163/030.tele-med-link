@@ -71,6 +71,38 @@ public class WechatNotifyServiceImpl implements WechatNotifyService {
         sendSubscribeMessage(openId, doctorName, date.toString(), timeSlot);
     }
 
+    @Override
+    public void notifyDoctorNewConsultation(Long doctorId, String patientName, String sourceCampusName, String date, String timeSlot) {
+        try {
+            Doctor doctor = doctorRepository.findById(doctorId).orElse(null);
+            if (doctor == null) {
+                return;
+            }
+            User user = userRepository.findById(doctor.getUserId()).orElse(null);
+            if (user == null || user.getOpenId() == null) {
+                return;
+            }
+            String openId = user.getOpenId();
+            String notifyContent = String.format("跨院区会诊邀请-%s", sourceCampusName);
+            sendSubscribeMessage(openId, notifyContent, date, timeSlot);
+        } catch (Exception e) {
+        }
+    }
+
+    @Override
+    public void notifyCrossCampusConsultationResult(Long patientId, String doctorName, boolean accepted, String reason) {
+        try {
+            Patient patient = patientRepository.findById(patientId).orElse(null);
+            if (patient == null || patient.getOpenId() == null) {
+                return;
+            }
+            String openId = patient.getOpenId();
+            String result = accepted ? "会诊已确认" : "会诊被拒绝-" + (reason != null ? reason : "");
+            sendSubscribeMessage(openId, result, doctorName, accepted ? "请准时参加" : "请另行预约");
+        } catch (Exception e) {
+        }
+    }
+
     private void sendSubscribeMessage(String openId, String thing1Value, String date2Value, String thing3Value) {
         String accessToken = getAccessToken();
         String url = "https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=" + accessToken;

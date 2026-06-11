@@ -35,28 +35,37 @@
 
 .action-cards {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   margin-bottom: 24rpx;
 }
 
 .action-card {
-  flex: 1;
+  flex: 0 0 calc(50% - 12rpx);
   display: flex;
   align-items: center;
   background: #fff;
   border-radius: 16rpx;
   padding: 32rpx 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+  margin-bottom: 16rpx;
+  box-sizing: border-box;
 }
 
 .card-immediate {
-  margin-right: 16rpx;
   border-left: 8rpx solid #1890ff;
 }
 
 .card-appointment {
-  margin-left: 16rpx;
   border-left: 8rpx solid #52c41a;
+}
+
+.card-cross-campus {
+  border-left: 8rpx solid #722ed1;
+}
+
+.card-list {
+  border-left: 8rpx solid #fa8c16;
 }
 
 .action-icon {

@@ -18,49 +18,28 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "t_consultation")
-public class Consultation {
+@Table(name = "t_consultation_doctor")
+public class ConsultationDoctor {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
-    private String consultationNo;
+    @Column(nullable = false)
+    private Long consultationId;
 
-    private Long patientId;
-
+    @Column(nullable = false)
     private Long doctorId;
-
-    private Long hospitalId;
 
     private Long campusId;
 
-    private Integer status;
+    private Integer roleType;
 
-    private Integer type;
+    private Integer joinStatus;
 
-    private Long appointmentId;
+    private LocalDateTime joinTime;
 
-    private String roomId;
-
-    private LocalDateTime startTime;
-
-    private LocalDateTime endTime;
-
-    private Integer duration;
-
-    private Boolean crossCampus = false;
-
-    private Long sourceCampusId;
-
-    private Long targetCampusId;
-
-    private String campusTag;
-
-    private LocalDateTime expireTime;
-
-    private LocalDateTime confirmTime;
+    private LocalDateTime leaveTime;
 
     private LocalDateTime createTime;
 

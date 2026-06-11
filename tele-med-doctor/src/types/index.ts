@@ -106,3 +106,86 @@ export interface Campus {
   phone?: string
   status?: number
 }
+
+export interface TimeSlotVO {
+  code: number
+  name: string
+  startTime?: string
+  endTime?: string
+  available: boolean
+  remainingCapacity: number
+}
+
+export interface DoctorScheduleVO {
+  doctorId: number
+  doctorName?: string
+  title?: string
+  department?: string
+  campusId?: number
+  campusName?: string
+  hospitalId?: number
+  hospitalName?: string
+  scheduleDate: string
+  timeSlots: TimeSlotVO[]
+}
+
+export interface ConsultationDoctorVO {
+  id?: number
+  doctorId: number
+  doctorName?: string
+  title?: string
+  department?: string
+  campusId?: number
+  campusName?: string
+  roleType: number
+  roleTypeText?: string
+  joinStatus: number
+  joinStatusText?: string
+  joinTime?: string
+  leaveTime?: string
+}
+
+export interface CrossCampusConsultation {
+  id: number
+  consultationNo: string
+  patientId: number
+  patientName?: string
+  doctorId?: number
+  doctorName?: string
+  hospitalId?: number
+  campusId?: number
+  status: number
+  statusText?: string
+  type: number
+  appointmentId?: number
+  roomId: string
+  startTime?: string
+  endTime?: string
+  duration?: number
+  createTime: string
+  conclusionContent?: string
+  conclusionFileUrl?: string
+  crossCampus: boolean
+  sourceCampusId?: number
+  sourceCampusName?: string
+  targetCampusId?: number
+  targetCampusName?: string
+  campusTag?: string
+  assistantDoctors?: ConsultationDoctorVO[]
+  primaryDoctorName?: string
+  expireTime?: string
+  confirmTime?: string
+}
+
+export interface CrossCampusConsultationCreateDTO {
+  patientId: number
+  sourceCampusId: number
+  targetCampusId: number
+  primaryDoctorId: number
+  assistantDoctorIds?: number[]
+  appointmentDate: string
+  timeSlot: number
+  description?: string
+  patientSymptoms?: string
+  consultationType?: number
+}

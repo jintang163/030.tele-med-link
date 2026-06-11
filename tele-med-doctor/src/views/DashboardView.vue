@@ -3,6 +3,17 @@
     <div class="dashboard-header">
       <h2>医生工作台</h2>
       <div class="header-right">
+        <div class="nav-links">
+          <el-button type="primary" size="default" @click="goToSchedule">
+            <el-icon><Calendar /></el-icon>
+            <span>排班日历</span>
+          </el-button>
+          <el-button type="success" size="default" @click="goToCrossCampus">
+            <el-icon><Connection /></el-icon>
+            <span>跨院区会诊</span>
+            <el-badge :value="waitingCrossCampusCount" :hidden="waitingCrossCampusCount === 0" class="badge" />
+          </el-button>
+        </div>
         <span class="user-info">{{ userStore.user?.realName || userStore.user?.username }}</span>
         <el-button type="danger" text @click="handleLogout">退出登录</el-button>
       </div>
@@ -69,13 +80,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getWaitingList, acceptConsultation } from '@/api/consultation'
 import { getDoctorAppointments, startAppointment } from '@/api/appointment'
+import { getDoctorCrossCampusConsultations } from '@/api/crossCampus'
 import { ElMessage } from 'element-plus'
-import type { Consultation, Appointment } from '@/types'
+import { Calendar, Connection } from '@element-plus/icons-vue'
+import type { Consultation, Appointment, CrossCampusConsultation } from '@/types'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -83,7 +96,12 @@ const waitingList = ref<Consultation[]>([])
 const appointmentList = ref<Appointment[]>([])
 const waitingLoading = ref(false)
 const appointmentLoading = ref(false)
+const crossCampusWaitingList = ref<CrossCampusConsultation[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+const waitingCrossCampusCount = computed(() => {
+  return crossCampusWaitingList.value.filter(c => c.status === 0).length
+})
 
 const formatTime = (time: string) => {
   if (!time) return ''
@@ -165,10 +183,32 @@ const handleLogout = () => {
   userStore.logout()
 }
 
+const goToSchedule = () => {
+  router.push('/cross-campus/schedule')
+}
+
+const goToCrossCampus = () => {
+  router.push('/cross-campus/list')
+}
+
+const fetchCrossCampusList = async () => {
+  if (!userStore.doctorInfo?.id) return
+  try {
+    const res = await getDoctorCrossCampusConsultations(userStore.doctorInfo.id)
+    crossCampusWaitingList.value = res.data || []
+  } catch {
+    crossCampusWaitingList.value = []
+  }
+}
+
 onMounted(() => {
   fetchWaitingList()
   fetchAppointments()
-  refreshTimer = setInterval(fetchWaitingList, 10000)
+  fetchCrossCampusList()
+  refreshTimer = setInterval(() => {
+    fetchWaitingList()
+    fetchCrossCampusList()
+  }, 10000)
 })
 
 onUnmounted(() => {
@@ -206,6 +246,22 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.nav-links .el-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge {
+  margin-left: 4px;
 }
 
 .user-info {

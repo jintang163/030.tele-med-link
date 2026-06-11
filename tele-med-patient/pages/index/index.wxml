@@ -31,6 +31,22 @@
         <text class="action-desc">预约未来时段会诊</text>
       </view>
     </view>
+
+    <view class="action-card card-cross-campus" bindtap="navigateToCrossCampus">
+      <view class="action-icon">🏥</view>
+      <view class="action-text">
+        <text class="action-title">跨院区会诊</text>
+        <text class="action-desc">预约其他院区专家</text>
+      </view>
+    </view>
+
+    <view class="action-card card-list" bindtap="navigateToCrossCampusList">
+      <view class="action-icon">📋</view>
+      <view class="action-text">
+        <text class="action-title">我的申请</text>
+        <text class="action-desc">查看跨院区申请记录</text>
+      </view>
+    </view>
   </view>
 
   <view class="section-header">

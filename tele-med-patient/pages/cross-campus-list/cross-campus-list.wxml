@@ -1,0 +1,201 @@
+<view class="container">
+  <view class="tab-bar">
+    <view
+      class="tab-item {{activeTab === 'all' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="all"
+    >全部</view>
+    <view
+      class="tab-item {{activeTab === 'pending' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="pending"
+    >待确认</view>
+    <view
+      class="tab-item {{activeTab === 'confirmed' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="confirmed"
+    >已确认</view>
+    <view
+      class="tab-item {{activeTab === 'done' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="done"
+    >已完成</view>
+  </view>
+
+  <view class="consultation-list" v-loading="loading">
+    <view
+      class="card consultation-item"
+      wx:for="{{consultationList}}"
+      wx:key="id"
+      bindtap="viewDetail"
+      data-id="{{item.id}}"
+    >
+      <view class="item-header">
+        <view class="campus-flow">
+          <text class="campus-tag source">{{item.sourceCampusName || '源院区'}}</text>
+          <text class="flow-arrow">→</text>
+          <text class="campus-tag target">{{item.targetCampusName || '目标院区'}}</text>
+        </view>
+        <text class="status-tag status-{{item.status}}">{{item.statusText}}</text>
+      </view>
+
+      <view class="item-body">
+        <view class="info-row">
+          <text class="label">会诊编号：</text>
+          <text class="value mono">{{item.consultationNo}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">主诊医生：</text>
+          <text class="value">{{item.primaryDoctorName || item.doctorName || '待分配'}}</text>
+        </view>
+        <view class="info-row" wx:if="{{item.appointmentId}}">
+          <text class="label">房间ID：</text>
+          <text class="value mono">{{item.roomId || '-'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">院区标签：</text>
+          <text class="value tag">{{item.campusTag}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">申请时间：</text>
+          <text class="value">{{item.createTime}}</text>
+        </view>
+        <view class="info-row expire-row" wx:if="{{item.status === 0 && item.expireTime}}">
+          <text class="label">超时时间：</text>
+          <text class="value expire {{isExpired(item.expireTime) ? 'is-expired' : ''}}">{{item.expireTime}}</text>
+        </view>
+      </view>
+
+      <view class="item-footer" wx:if="{{item.status === 0 || item.status === 1 || item.status === 2}}">
+        <view
+          class="btn btn-cancel"
+          wx:if="{{item.status === 0}}"
+          catchtap="cancelConsultation"
+          data-id="{{item.id}}"
+        >取消申请</view>
+        <view
+          class="btn btn-enter"
+          wx:if="{{(item.status === 0 || item.status === 1) && item.roomId}}"
+          catchtap="enterRoom"
+          data-id="{{item.id}}"
+        >进入会诊</view>
+        <view
+          class="btn btn-conclusion"
+          wx:if="{{item.status === 2}}"
+          catchtap="viewConclusion"
+          data-id="{{item.id}}"
+        >查看结论</view>
+      </view>
+    </view>
+
+    <view class="empty-tip" wx:if="{{!loading && consultationList.length === 0}}">
+      <image class="empty-img" src="/images/empty.png" mode="aspectFit" wx:if="{{false}}"></image>
+      <text class="empty-text">{{emptyTipText}}</text>
+    </view>
+  </view>
+
+  <view class="detail-mask" wx:if="{{showDetail}}" bindtap="hideDetail"></view>
+  <view class="detail-sheet" wx:if="{{showDetail}}" catchtap="stopPropagation">
+    <view class="sheet-header">
+      <text class="sheet-title">会诊详情</text>
+      <text class="sheet-close" bindtap="hideDetail">✕</text>
+    </view>
+    <scroll-view class="sheet-body" scroll-y="true" wx:if="{{detail}}">
+      <view class="detail-section">
+        <view class="section-title">基本信息</view>
+        <view class="detail-row">
+          <text class="detail-label">会诊编号</text>
+          <text class="detail-value mono">{{detail.consultationNo}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">会诊状态</text>
+          <text class="status-tag status-{{detail.status}}">{{detail.statusText}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">会诊类型</text>
+          <text class="detail-value">跨院区专家会诊</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">院区标签</text>
+          <text class="detail-value tag">{{detail.campusTag}}</text>
+        </view>
+      </view>
+      <view class="detail-section">
+        <view class="section-title">院区信息</view>
+        <view class="campus-flow-big">
+          <view class="campus-block source">
+            <text class="block-label">源院区</text>
+            <text class="block-name">{{detail.sourceCampusName || '-'}}</text>
+          </view>
+          <view class="flow-icon-big">➜</view>
+          <view class="campus-block target">
+            <text class="block-label">目标院区</text>
+            <text class="block-name">{{detail.targetCampusName || '-'}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="detail-section" wx:if="{{detail.primaryDoctorName || detail.assistantDoctors}}">
+        <view class="section-title">会诊专家</view>
+        <view class="doctor-card primary">
+          <view class="doctor-type">主诊医生</view>
+          <view class="doctor-name">{{detail.primaryDoctorName || '待分配'}}</view>
+        </view>
+        <view
+          class="doctor-card assistant"
+          wx:for="{{detail.assistantDoctors}}"
+          wx:for-item="doc"
+          wx:key="id"
+        >
+          <view class="doctor-type">副诊医生</view>
+          <view class="doctor-name">{{doc.doctorName}} · {{doc.title || ''}}</view>
+          <view class="doctor-info">{{doc.department || ''}} {{doc.campusName ? '(' + doc.campusName + ')' : ''}}</view>
+          <view class="join-status status-{{doc.joinStatus}}">{{doc.joinStatusText}}</view>
+        </view>
+      </view>
+      <view class="detail-section">
+        <view class="section-title">时间信息</view>
+        <view class="detail-row">
+          <text class="detail-label">申请时间</text>
+          <text class="detail-value">{{detail.createTime}}</text>
+        </view>
+        <view class="detail-row" wx:if="{{detail.confirmTime}}">
+          <text class="detail-label">确认时间</text>
+          <text class="detail-value">{{detail.confirmTime}}</text>
+        </view>
+        <view class="detail-row" wx:if="{{detail.expireTime}}">
+          <text class="detail-label">超时时间</text>
+          <text class="detail-value">{{detail.expireTime}}</text>
+        </view>
+        <view class="detail-row" wx:if="{{detail.startTime}}">
+          <text class="detail-label">开始时间</text>
+          <text class="detail-value">{{detail.startTime}}</text>
+        </view>
+        <view class="detail-row" wx:if="{{detail.endTime}}">
+          <text class="detail-label">结束时间</text>
+          <text class="detail-value">{{detail.endTime}}</text>
+        </view>
+      </view>
+      <view class="detail-section" wx:if="{{detail.conclusionContent}}">
+        <view class="section-title">会诊结论</view>
+        <view class="conclusion-content">{{detail.conclusionContent}}</view>
+        <view class="file-link" wx:if="{{detail.conclusionFileUrl}}" bindtap="openConclusionFile" data-url="{{detail.conclusionFileUrl}}">
+          📎 查看完整报告
+        </view>
+      </view>
+    </scroll-view>
+    <view class="sheet-footer" wx:if="{{detail}}">
+      <view
+        class="sheet-btn btn-secondary"
+        wx:if="{{detail.status === 0}}"
+        bindtap="cancelConsultation"
+        data-id="{{detail.id}}"
+      >取消申请</view>
+      <view
+        class="sheet-btn btn-primary"
+        wx:if="{{(detail.status === 0 || detail.status === 1) && detail.roomId}}"
+        bindtap="enterRoom"
+        data-id="{{detail.id}}"
+      >进入会诊房间</view>
+    </view>
+  </view>
+</view>

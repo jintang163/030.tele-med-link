@@ -252,6 +252,28 @@ Page({
     });
   },
 
+  navigateToCrossCampus: function () {
+    var patientId = app.globalData.patientId;
+    if (!patientId) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({
+      url: '/pages/cross-campus-appointment/cross-campus-appointment'
+    });
+  },
+
+  navigateToCrossCampusList: function () {
+    var patientId = app.globalData.patientId;
+    if (!patientId) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({
+      url: '/pages/cross-campus-list/cross-campus-list'
+    });
+  },
+
   viewConclusion: function (e) {
     var id = e.currentTarget.dataset.id;
     wx.navigateTo({

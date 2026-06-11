@@ -20,6 +20,18 @@ const router = createRouter({
       name: 'consultation',
       component: () => import('@/views/ConsultationView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/cross-campus/schedule',
+      name: 'crossCampusSchedule',
+      component: () => import('@/views/CrossCampusScheduleView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/cross-campus/list',
+      name: 'crossCampusList',
+      component: () => import('@/views/CrossCampusListView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

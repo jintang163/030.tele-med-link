@@ -54,3 +54,17 @@ encryption:
   aesKey: 0123456789abcdef0123456789abcdef
   rsaPublicKey: your-rsa-public-key
   rsaPrivateKey: your-rsa-private-key
+
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: telemed-producer-group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+  consumer:
+    group: telemed-consumer-group
+
+cross-campus:
+  consultation:
+    timeout-minutes: 30
+    room-id-prefix: CROSS-CAMPUS

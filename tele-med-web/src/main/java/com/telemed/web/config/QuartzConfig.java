@@ -1,6 +1,7 @@
 package com.telemed.web.config;
 
 import com.telemed.web.job.AppointmentReminderJob;
+import com.telemed.web.job.CrossCampusConsultationCleanJob;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
@@ -37,6 +38,23 @@ public class QuartzConfig {
                 .withIdentity("afternoonReminderTrigger")
                 .withSchedule(CronScheduleBuilder.cronSchedule("0 50 13 * * ?"))
                 .usingJobData("timeSlot", 1)
+                .build();
+    }
+
+    @Bean
+    public JobDetail crossCampusCleanJobDetail() {
+        return JobBuilder.newJob(CrossCampusConsultationCleanJob.class)
+                .withIdentity("crossCampusCleanJob")
+                .storeDurably()
+                .build();
+    }
+
+    @Bean
+    public Trigger crossCampusCleanTrigger() {
+        return TriggerBuilder.newTrigger()
+                .forJob(crossCampusCleanJobDetail())
+                .withIdentity("crossCampusCleanTrigger")
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 */5 * * * ?"))
                 .build();
     }
 }

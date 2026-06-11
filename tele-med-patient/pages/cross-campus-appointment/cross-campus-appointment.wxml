@@ -1,0 +1,231 @@
+<view class="container">
+  <view class="step-indicator">
+    <view class="step {{currentStep >= 1 ? 'active' : ''}}">
+      <view class="step-num">1</view>
+      <text class="step-text">选择院区</text>
+    </view>
+    <view class="step-line {{currentStep >= 2 ? 'active' : ''}}"></view>
+    <view class="step {{currentStep >= 2 ? 'active' : ''}}">
+      <view class="step-num">2</view>
+      <text class="step-text">选择专家</text>
+    </view>
+    <view class="step-line {{currentStep >= 3 ? 'active' : ''}}"></view>
+    <view class="step {{currentStep >= 3 ? 'active' : ''}}">
+      <view class="step-num">3</view>
+      <text class="step-text">选择时间</text>
+    </view>
+    <view class="step-line {{currentStep >= 4 ? 'active' : ''}}"></view>
+    <view class="step {{currentStep >= 4 ? 'active' : ''}}">
+      <view class="step-num">4</view>
+      <text class="step-text">确认提交</text>
+    </view>
+  </view>
+
+  <view class="campus-section" wx:if="{{currentStep === 1}}">
+    <view class="card">
+      <view class="card-title">
+        <text class="title-icon">🏥</text>
+        <text>院区选择</text>
+      </view>
+      <view class="campus-group">
+        <view class="group-label">患者所在院区（源院区）</view>
+        <view class="source-campus">
+          <text class="campus-badge source">{{sourceCampusName || '当前院区'}}</text>
+        </view>
+      </view>
+      <view class="campus-group">
+        <view class="group-label">请选择目标院区</view>
+        <view
+          class="campus-item {{selectedTargetCampusId === item.id ? 'selected' : ''}}"
+          wx:for="{{targetCampusList}}"
+          wx:key="id"
+          bindtap="selectTargetCampus"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+        >
+          <view class="campus-check"></view>
+          <view class="campus-detail">
+            <text class="campus-name">{{item.name}}</text>
+            <text class="campus-addr" wx:if="{{item.address}}">{{item.address}}</text>
+          </view>
+        </view>
+        <view class="empty-tip" wx:if="{{targetCampusList.length === 0}}">
+          <text>暂无其他院区信息</text>
+        </view>
+      </view>
+      <button class="btn-primary" bindtap="goToStep2" disabled="{{!selectedTargetCampusId}}">下一步：选择专家</button>
+    </view>
+  </view>
+
+  <view class="doctor-section" wx:if="{{currentStep === 2}}">
+    <view class="card">
+      <view class="card-title">
+        <text class="title-icon">👨‍⚕️</text>
+        <text>选择专家</text>
+      </view>
+      <view class="campus-tags">
+        <el-tag class="tag-info">{{sourceCampusName}}</el-tag>
+        <text class="arrow">→</text>
+        <el-tag class="tag-warn">{{targetCampusName}}</el-tag>
+      </view>
+      <view class="dept-filter">
+        <input
+          class="dept-input"
+          placeholder="输入科室筛选（可选），如：内科、外科"
+          value="{{filterDepartment}}"
+          bindinput="onDeptInput"
+        />
+        <button class="btn-filter" size="mini" bindtap="loadTargetDoctors">筛选</button>
+      </view>
+      <view class="doctor-group">
+        <view class="group-label">主诊医生（必填）</view>
+        <view
+          class="doctor-item {{selectedPrimaryDoctorId === item.id ? 'selected' : ''}}"
+          wx:for="{{targetDoctorList}}"
+          wx:key="id"
+          bindtap="selectPrimaryDoctor"
+          data-id="{{item.id}}"
+        >
+          <view class="doctor-check">✓</view>
+          <view class="doctor-info">
+            <view class="doctor-row">
+              <text class="doctor-name">{{item.name}}</text>
+              <text class="doctor-title" wx:if="{{item.title}}">{{item.title}}</text>
+            </view>
+            <view class="doctor-row">
+              <text class="doctor-dept" wx:if="{{item.department}}">{{item.department}}</text>
+              <text class="doctor-specialty" wx:if="{{item.specialty}}">· {{item.specialty}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="empty-tip" wx:if="{{targetDoctorList.length === 0}}">
+          <text>暂无医生信息</text>
+        </view>
+      </view>
+      <view class="doctor-group" wx:if="{{assistantDoctorList.length > 0}}">
+        <view class="group-label">副诊医生（可多选，可选）</view>
+        <view
+          class="doctor-item {{selectedAssistantDoctorIds.indexOf(item.id) > -1 ? 'selected' : ''}}"
+          wx:for="{{assistantDoctorList}}"
+          wx:key="id"
+          bindtap="toggleAssistantDoctor"
+          data-id="{{item.id}}"
+        >
+          <view class="doctor-check">✓</view>
+          <view class="doctor-info">
+            <view class="doctor-row">
+              <text class="doctor-name">{{item.name}}</text>
+              <text class="doctor-title" wx:if="{{item.title}}">{{item.title}}</text>
+            </view>
+            <view class="doctor-row">
+              <text class="doctor-dept" wx:if="{{item.department}}">{{item.department}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="btn-row">
+        <button class="btn-secondary" bindtap="goBackStep1">上一步</button>
+        <button class="btn-primary" bindtap="goToStep3" disabled="{{!selectedPrimaryDoctorId}}">下一步：选择时间</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="time-section" wx:if="{{currentStep === 3}}">
+    <view class="card">
+      <view class="card-title">
+        <text class="title-icon">📅</text>
+        <text>选择时间</text>
+      </view>
+      <view class="date-picker-row">
+        <text class="label">会诊日期：</text>
+        <picker mode="date" value="{{appointmentDate}}" start="{{minDate}}" bindchange="onDateChange">
+          <view class="date-picker">
+            <text>{{appointmentDate || '请选择日期'}}</text>
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <view class="doctor-summary">
+        <text>主诊：{{primaryDoctorName}}</text>
+        <text class="dept-tag" wx:if="{{primaryDoctorDepartment}}">{{primaryDoctorDepartment}}</text>
+      </view>
+      <view class="group-label">可预约时间段</view>
+      <view class="time-slots">
+        <view
+          class="slot-item {{item.code === selectedTimeSlot ? 'selected' : ''}} {{!item.available ? 'disabled' : ''}}"
+          wx:for="{{timeSlotList}}"
+          wx:key="code"
+          bindtap="selectTimeSlot"
+          data-code="{{item.code}}"
+          data-available="{{item.available}}"
+        >
+          <view class="slot-name">{{item.name}}</view>
+          <view class="slot-range">{{item.startTime}} - {{item.endTime}}</view>
+          <view class="slot-status">
+            <text class="status-available" wx:if="{{item.available}}">可预约</text>
+            <text class="status-full" wx:else>已满</text>
+          </view>
+        </view>
+      </view>
+      <view class="btn-row">
+        <button class="btn-secondary" bindtap="goBackStep2">上一步</button>
+        <button class="btn-primary" bindtap="goToStep4" disabled="{{!appointmentDate || selectedTimeSlot === null}}">下一步：确认信息</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="confirm-section" wx:if="{{currentStep === 4}}">
+    <view class="card">
+      <view class="card-title">
+        <text class="title-icon">✅</text>
+        <text>确认预约信息</text>
+      </view>
+      <view class="info-list">
+        <view class="info-row">
+          <text class="info-label">源院区：</text>
+          <text class="info-value tag-info">{{sourceCampusName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">目标院区：</text>
+          <text class="info-value tag-warn">{{targetCampusName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">主诊医生：</text>
+          <text class="info-value">{{primaryDoctorName}} {{primaryDoctorTitle}}</text>
+        </view>
+        <view class="info-row" wx:if="{{assistantNames}}">
+          <text class="info-label">副诊医生：</text>
+          <text class="info-value">{{assistantNames}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">会诊日期：</text>
+          <text class="info-value">{{appointmentDate}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">时间段：</text>
+          <text class="info-value">{{selectedTimeSlotName}}</text>
+        </view>
+        <view class="info-row desc-row">
+          <text class="info-label">病情描述：</text>
+          <textarea
+            class="desc-textarea"
+            placeholder="请简要描述病情，方便医生提前了解"
+            value="{{description}}"
+            bindinput="onDescInput"
+            maxlength="500"
+          />
+        </view>
+      </view>
+      <view class="tip-box">
+        <text class="tip-title">📌 温馨提示</text>
+        <text class="tip-text">1. 提交后请等待目标院区医生确认（30分钟内未确认将自动取消）</text>
+        <text class="tip-text">2. 医生确认后将生成会诊房间号，请准时参加</text>
+        <text class="tip-text">3. 如需取消请提前操作，避免占用医疗资源</text>
+      </view>
+      <view class="btn-row">
+        <button class="btn-secondary" bindtap="goBackStep3">上一步</button>
+        <button class="btn-primary" bindtap="submitAppointment" loading="{{submitting}}">提交申请</button>
+      </view>
+    </view>
+  </view>
+</view>

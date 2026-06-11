@@ -32,6 +32,14 @@ public class Appointment {
 
     private Long hospitalId;
 
+    private Long campusId;
+
+    private Long targetCampusId;
+
+    private Boolean crossCampus = false;
+
+    private String campusTag;
+
     private LocalDate appointmentDate;
 
     private Integer timeSlot;
@@ -42,6 +50,8 @@ public class Appointment {
     private String description;
 
     private Long consultationId;
+
+    private LocalDateTime expireTime;
 
     private LocalDateTime createTime;
 
