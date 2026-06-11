@@ -68,3 +68,43 @@ cross-campus:
   consultation:
     timeout-minutes: 30
     room-id-prefix: CROSS-CAMPUS
+
+mediasoup:
+  nodes:
+    - id: 1
+      name: ms-cn-east-1
+      ip: 127.0.0.1
+      port: 7000
+      http-port: 8000
+      region: cn-east
+      weight: 100
+    - id: 2
+      name: ms-cn-east-2
+      ip: 127.0.0.1
+      port: 7001
+      http-port: 8001
+      region: cn-east
+      weight: 100
+    - id: 3
+      name: ms-cn-north-1
+      ip: 127.0.0.1
+      port: 7002
+      http-port: 8002
+      region: cn-north
+      weight: 80
+  router:
+    rtp-capabilities-json: '{"codecs":[{"mimeType":"video/VP8","payloadType":96,"clockRate":90000,"parameters":{}},{"mimeType":"audio/opus","payloadType":100,"clockRate":48000,"channels":2,"parameters":{"useinbandfec":1,"usedtx":1}}],"headerExtensions":[]}'
+  turn:
+    urls:
+      - turn:turn.telemed.example.com:3478?transport=udp
+      - turn:turn.telemed.example.com:3478?transport=tcp
+      - stun:stun.telemed.example.com:3478
+    username: telemed-turn-user
+    credential: telemed-turn-secret-2024
+    credential-type: password
+  adaptive:
+    high-loss-rate: 0.05
+    low-loss-rate: 0.01
+    monitor-interval-ms: 3000
+    stable-duration-ms: 10000
+    audio-priority: true

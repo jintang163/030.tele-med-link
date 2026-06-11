@@ -2,6 +2,17 @@ package com.telemed.web.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.telemed.common.dto.SignalingMessage;
+import com.telemed.common.dto.mediasoup.ConsumerCreateDTO;
+import com.telemed.common.dto.mediasoup.ProducerCreateDTO;
+import com.telemed.common.dto.mediasoup.QualityReportDTO;
+import com.telemed.common.dto.mediasoup.TransportCreateDTO;
+import com.telemed.common.vo.mediasoup.ConsumerVO;
+import com.telemed.common.vo.mediasoup.NearestNodeVO;
+import com.telemed.common.vo.mediasoup.ProducerVO;
+import com.telemed.common.vo.mediasoup.QualityAdviceVO;
+import com.telemed.common.vo.mediasoup.RouterRtpCapabilitiesVO;
+import com.telemed.common.vo.mediasoup.TransportConnectVO;
+import com.telemed.common.vo.mediasoup.TurnServerVO;
 import com.telemed.model.entity.ChatMessage;
 import com.telemed.model.repository.ChatMessageRepository;
 import com.telemed.service.SignalingService;
@@ -15,6 +26,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -93,6 +105,34 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
                 signalingService.relaySignaling(signalingMessage);
                 break;
 
+            case "mediasoup-transport-create":
+                handleMediasoupTransportCreate(session, signalingMessage, userId);
+                break;
+
+            case "mediasoup-transport-connect":
+                sendResult(session, signalingMessage.getType(), Map.of("connected", true));
+                break;
+
+            case "mediasoup-produce":
+                handleMediasoupProduce(session, signalingMessage, userId);
+                break;
+
+            case "mediasoup-consume":
+                handleMediasoupConsume(session, signalingMessage, userId);
+                break;
+
+            case "mediasoup-close-producer":
+                handleMediasoupCloseProducer(session, signalingMessage, userId);
+                break;
+
+            case "mediasoup-close-consumer":
+                handleMediasoupCloseConsumer(session, signalingMessage, userId);
+                break;
+
+            case "quality-report":
+                handleQualityReport(session, signalingMessage, userId);
+                break;
+
             default:
                 log.warn("Unknown signaling type: {}", signalingMessage.getType());
         }
@@ -153,6 +193,137 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             }
         } catch (Exception e) {
             log.error("Failed to broadcast message", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleMediasoupTransportCreate(WebSocketSession session, SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = (Map<String, Object>) message.getPayload();
+            Long nodeId = payload.get("nodeId") != null ? Long.valueOf(payload.get("nodeId").toString()) : null;
+            TransportCreateDTO dto = new TransportCreateDTO();
+            dto.setConsultationId(payload.get("consultationId") != null ? Long.valueOf(payload.get("consultationId").toString()) : null);
+            dto.setUserId(userId != null ? Long.valueOf(userId) : null);
+            dto.setKind(payload.get("kind") != null ? payload.get("kind").toString() : null);
+            TransportConnectVO vo = signalingService.createWebRtcTransport(nodeId, dto);
+            sendResult(session, message.getType(), vo);
+        } catch (Exception e) {
+            log.error("处理 mediasoup-transport-create 失败", e);
+            sendError(session, message.getType(), e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleMediasoupProduce(WebSocketSession session, SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = (Map<String, Object>) message.getPayload();
+            Long nodeId = payload.get("nodeId") != null ? Long.valueOf(payload.get("nodeId").toString()) : null;
+            ProducerCreateDTO dto = new ProducerCreateDTO();
+            dto.setConsultationId(payload.get("consultationId") != null ? Long.valueOf(payload.get("consultationId").toString()) : null);
+            dto.setUserId(userId != null ? Long.valueOf(userId) : null);
+            dto.setTransportId(payload.get("transportId") != null ? payload.get("transportId").toString() : null);
+            dto.setKind(payload.get("kind") != null ? payload.get("kind").toString() : null);
+            dto.setRtpParameters(payload.get("rtpParameters") != null ? payload.get("rtpParameters").toString() : null);
+            ProducerVO vo = signalingService.createProducer(nodeId, dto);
+            sendResult(session, message.getType(), vo);
+        } catch (Exception e) {
+            log.error("处理 mediasoup-produce 失败", e);
+            sendError(session, message.getType(), e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleMediasoupConsume(WebSocketSession session, SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = (Map<String, Object>) message.getPayload();
+            Long nodeId = payload.get("nodeId") != null ? Long.valueOf(payload.get("nodeId").toString()) : null;
+            ConsumerCreateDTO dto = new ConsumerCreateDTO();
+            dto.setConsultationId(payload.get("consultationId") != null ? Long.valueOf(payload.get("consultationId").toString()) : null);
+            dto.setUserId(userId != null ? Long.valueOf(userId) : null);
+            dto.setTransportId(payload.get("transportId") != null ? payload.get("transportId").toString() : null);
+            dto.setProducerId(payload.get("producerId") != null ? payload.get("producerId").toString() : null);
+            dto.setRtpCapabilities(payload.get("rtpCapabilities") != null ? payload.get("rtpCapabilities").toString() : null);
+            ConsumerVO vo = signalingService.createConsumer(nodeId, dto);
+            sendResult(session, message.getType(), vo);
+        } catch (Exception e) {
+            log.error("处理 mediasoup-consume 失败", e);
+            sendError(session, message.getType(), e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleMediasoupCloseProducer(WebSocketSession session, SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = (Map<String, Object>) message.getPayload();
+            Long nodeId = payload.get("nodeId") != null ? Long.valueOf(payload.get("nodeId").toString()) : null;
+            String producerId = payload.get("producerId") != null ? payload.get("producerId").toString() : null;
+            signalingService.closeProducer(nodeId, producerId);
+            sendResult(session, message.getType(), Map.of("closed", true));
+        } catch (Exception e) {
+            log.error("处理 mediasoup-close-producer 失败", e);
+            sendError(session, message.getType(), e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleMediasoupCloseConsumer(WebSocketSession session, SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = (Map<String, Object>) message.getPayload();
+            Long nodeId = payload.get("nodeId") != null ? Long.valueOf(payload.get("nodeId").toString()) : null;
+            String consumerId = payload.get("consumerId") != null ? payload.get("consumerId").toString() : null;
+            signalingService.closeConsumer(nodeId, consumerId);
+            sendResult(session, message.getType(), Map.of("closed", true));
+        } catch (Exception e) {
+            log.error("处理 mediasoup-close-consumer 失败", e);
+            sendError(session, message.getType(), e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleQualityReport(WebSocketSession session, SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = (Map<String, Object>) message.getPayload();
+            QualityReportDTO dto = new QualityReportDTO();
+            dto.setUserId(userId != null ? Long.valueOf(userId) : null);
+            dto.setConsultationId(payload.get("consultationId") != null ? Long.valueOf(payload.get("consultationId").toString()) : null);
+            dto.setTransportId(payload.get("transportId") != null ? payload.get("transportId").toString() : null);
+            dto.setKind(payload.get("kind") != null ? payload.get("kind").toString() : null);
+            dto.setPacketLostRate(payload.get("packetLostRate") != null ? Double.valueOf(payload.get("packetLostRate").toString()) : null);
+            dto.setJitter(payload.get("jitter") != null ? Long.valueOf(payload.get("jitter").toString()) : null);
+            dto.setRoundTripTime(payload.get("roundTripTime") != null ? Long.valueOf(payload.get("roundTripTime").toString()) : null);
+            dto.setBitrate(payload.get("bitrate") != null ? Long.valueOf(payload.get("bitrate").toString()) : null);
+            dto.setResolution(payload.get("resolution") != null ? payload.get("resolution").toString() : null);
+            QualityAdviceVO vo = signalingService.reportQualityAndGetAdvice(dto);
+            sendResult(session, message.getType(), vo);
+        } catch (Exception e) {
+            log.error("处理 quality-report 失败", e);
+            sendError(session, message.getType(), e.getMessage());
+        }
+    }
+
+    private void sendResult(WebSocketSession session, String type, Object data) {
+        try {
+            SignalingMessage response = new SignalingMessage();
+            response.setType(type + "-response");
+            response.setPayload(data);
+            response.setTimestamp(System.currentTimeMillis());
+            String json = objectMapper.writeValueAsString(response);
+            session.sendMessage(new TextMessage(json));
+        } catch (Exception e) {
+            log.error("发送 WebSocket 响应失败", e);
+        }
+    }
+
+    private void sendError(WebSocketSession session, String type, String errorMsg) {
+        try {
+            SignalingMessage response = new SignalingMessage();
+            response.setType(type + "-error");
+            response.setPayload(Map.of("error", errorMsg != null ? errorMsg : "Unknown error"));
+            response.setTimestamp(System.currentTimeMillis());
+            String json = objectMapper.writeValueAsString(response);
+            session.sendMessage(new TextMessage(json));
+        } catch (Exception e) {
+            log.error("发送 WebSocket 错误响应失败", e);
         }
     }
 }

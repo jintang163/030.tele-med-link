@@ -81,7 +81,7 @@ export interface ChatMessage {
 }
 
 export interface SignalingMessage {
-  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left'
+  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left' | 'mediasoup-producer-added' | 'mediasoup-producer-removed'
   from: string
   to: string
   roomId: string
@@ -188,4 +188,80 @@ export interface CrossCampusConsultationCreateDTO {
   description?: string
   patientSymptoms?: string
   consultationType?: number
+}
+
+export type VideoResolution = '1280x720' | '960x540' | '640x360'
+
+export interface MediasoupNodeVO {
+  id: string
+  nodeName: string
+  nodeIp: string
+  nodePort: number
+  httpPort: number
+  region: string
+  weight: number
+  status: number
+  cpuUsage: number
+  memoryUsage: number
+  activeConsumers: number
+  activeProducers: number
+}
+
+export interface NearestNodeVO {
+  nodeId: string
+  nodeUrl: string
+  wsUrl: string
+  region: string
+  latencyMs: number
+  rtpCapabilities: any
+}
+
+export interface TurnServerVO {
+  urls: string[]
+  username: string
+  credential: string
+  credentialType: string
+}
+
+export interface TransportConnectVO {
+  id: string
+  iceParameters: any
+  iceCandidates: any[]
+  dtlsParameters: any
+}
+
+export interface ProducerVO {
+  id: string
+  kind: 'audio' | 'video'
+  userId: string
+  consultationId: string
+  paused: boolean
+}
+
+export interface ConsumerVO {
+  id: string
+  producerId: string
+  kind: 'audio' | 'video'
+  userId: string
+  paused: boolean
+  rtpParameters: any
+}
+
+export interface QualityAdviceVO {
+  targetResolution: VideoResolution
+  targetBitrate: number
+  shouldDowngrade: boolean
+  reason: string
+}
+
+export interface QualityReportDTO {
+  userId: string
+  consultationId: string
+  transportId: string
+  kind: 'audio' | 'video'
+  packetLostRate: number
+  jitter: number
+  roundTripTime: number
+  bitrate: number
+  resolution: VideoResolution
 }

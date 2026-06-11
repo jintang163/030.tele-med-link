@@ -1,6 +1,7 @@
 var app = getApp();
 var request = require('../../utils/request');
 var signaling = require('../../utils/websocket');
+var mediasoup = require('../../utils/mediasoup');
 
 Page({
   data: {
@@ -16,10 +17,12 @@ Page({
     status: 0,
     statusText: '等待中',
     showChat: true,
-    scrollToId: ''
+    scrollToId: '',
+    currentResolution: '1280x720'
   },
 
   signalingClient: null,
+  mediasoupRoom: null,
 
   onLoad: function (options) {
     var consultationId = options.consultationId;
@@ -58,20 +61,25 @@ Page({
     });
   },
 
-  initVideo: function () {
+  initVideo: async function () {
     var that = this;
     var roomId = this.data.roomId;
     if (!roomId) {
       return;
     }
 
-    var pushUrl = 'webrtc://localhost/live/' + roomId + '_patient';
-    var pullUrl = 'webrtc://localhost/live/' + roomId + '_doctor';
-
-    that.setData({
-      localVideoUrl: pushUrl,
-      remoteVideoUrl: pullUrl
-    });
+    var patientId = app.globalData.patientId;
+    this.mediasoupRoom = new mediasoup.MediasoupRoom(roomId);
+    try {
+      var result = await this.mediasoupRoom.joinRoom('patient_' + patientId);
+      that.setData({
+        localVideoUrl: result.localVideoUrl,
+        remoteVideoUrl: result.remoteVideoUrl,
+        currentResolution: result.currentResolution
+      });
+    } catch (e) {
+      wx.showToast({ title: '初始化视频失败', icon: 'none' });
+    }
   },
 
   connectSignaling: function () {
@@ -108,6 +116,19 @@ Page({
         roomId: that.data.roomId
       });
     } else if (data.type === 'ice-candidate') {
+    } else if (data.type === 'mediasoup-producer-created') {
+    } else if (data.type === 'mediasoup-consumer-created') {
+    } else if (data.type === 'mediasoup-quality-advice') {
+      if (that.mediasoupRoom) {
+        if (data.shouldDowngrade) {
+          that.mediasoupRoom._downgradeResolution();
+        } else if (data.shouldUpgrade) {
+          that.mediasoupRoom._upgradeResolution();
+        }
+        that.setData({
+          currentResolution: that.mediasoupRoom.currentResolution
+        });
+      }
     } else if (data.type === 'chat') {
       var now = new Date();
       var timeStr = now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
@@ -158,11 +179,23 @@ Page({
   },
 
   toggleMute: function () {
-    this.setData({ isMuted: !this.data.isMuted });
+    var isMuted;
+    if (this.mediasoupRoom) {
+      isMuted = this.mediasoupRoom.toggleMute();
+    } else {
+      isMuted = !this.data.isMuted;
+    }
+    this.setData({ isMuted: isMuted });
   },
 
   toggleCamera: function () {
-    this.setData({ isCameraOff: !this.data.isCameraOff });
+    var isCameraOff;
+    if (this.mediasoupRoom) {
+      isCameraOff = this.mediasoupRoom.toggleCamera();
+    } else {
+      isCameraOff = !this.data.isCameraOff;
+    }
+    this.setData({ isCameraOff: isCameraOff });
   },
 
   switchCamera: function () {
@@ -203,6 +236,13 @@ Page({
   },
 
   onRemotePlayerStateChange: function (e) {
+    var that = this;
+    if (e.detail && e.detail.code === 1003 && that.mediasoupRoom) {
+      var lossRate = e.detail.info && e.detail.info.lossRate ? e.detail.info.lossRate : 0;
+      if (lossRate > 0.05) {
+        that.mediasoupRoom.reportLossRate(lossRate);
+      }
+    }
   },
 
   onLocalPusherStateChange: function (e) {
@@ -211,6 +251,9 @@ Page({
   onUnload: function () {
     if (this.signalingClient) {
       this.signalingClient.close();
+    }
+    if (this.mediasoupRoom) {
+      this.mediasoupRoom.leaveRoom();
     }
   }
 });

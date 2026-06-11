@@ -5,6 +5,11 @@
       src="{{remoteVideoUrl}}"
       mode="RTC"
       autoplay
+      enable-mic="true"
+      enable-camera="true"
+      min-cache="0.3"
+      max-cache="0.8"
+      resolution="{{currentResolution}}"
       bindstatechange="onRemotePlayerStateChange"
       wx:if="{{remoteVideoUrl}}"
     ></live-player>
@@ -18,7 +23,11 @@
       url="{{localVideoUrl}}"
       mode="RTC"
       muted="{{isMuted}}"
-      enable-camera="{{!isCameraOff}}"
+      enable-mic="true"
+      enable-camera="true"
+      min-cache="0.3"
+      max-cache="0.8"
+      resolution="{{currentResolution}}"
       auto-focus
       bindstatechange="onLocalPusherStateChange"
       wx:if="{{localVideoUrl}}"
