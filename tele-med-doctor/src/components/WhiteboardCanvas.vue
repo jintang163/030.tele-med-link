@@ -471,14 +471,32 @@ function exportCanvas(): string {
   return canvasRef.value.toDataURL('image/png')
 }
 
-function handleSaveSnapshot() {
+async function handleSaveSnapshot() {
   const dataUrl = exportCanvas()
   if (!dataUrl) {
     ElMessage.warning('白板为空，无法保存')
     return
   }
-  emit('save', dataUrl)
-  ElMessage.success('已生成快照')
+
+  try {
+    await saveWhiteboardSnapshot({
+      roomId: props.roomId,
+      source: props.source || 'BLANK',
+      imageId: props.imageId,
+      snapshotData: dataUrl,
+      format: 'png',
+      fileName: `whiteboard_${Date.now()}.png`,
+      operatorId: props.userId,
+      operatorName: props.userName,
+      consultationId: Number(props.roomId),
+      insertToRecord: false
+    })
+    emit('save', dataUrl)
+    ElMessage.success('快照已保存至MinIO')
+  } catch {
+    emit('save', dataUrl)
+    ElMessage.error('快照上传失败，已生成本地快照')
+  }
 }
 
 async function handleSaveToRecord() {
@@ -530,6 +548,12 @@ function handleClearRemote() {
   redrawAll()
 }
 
+function clearCanvas() {
+  ops.value = []
+  redoStack.value = []
+  redrawAll()
+}
+
 function handleResize() {
   if (!canvasRef.value || !canvasWrapperRef.value) return
   const prevOps = [...ops.value]
@@ -566,12 +590,21 @@ watch(() => props.initialOps, (newOps) => {
   }
 })
 
+watch(() => props.imageId, (newImageId, oldImageId) => {
+  if (props.source === 'DICOM' && newImageId !== undefined && newImageId !== oldImageId) {
+    clearCanvas()
+    ops.value = []
+    redoStack.value = []
+  }
+})
+
 defineExpose({
   addRemoteOp,
   applyOps,
   handleClearRemote,
   exportCanvas,
-  handleResize
+  handleResize,
+  clearCanvas
 })
 </script>
 

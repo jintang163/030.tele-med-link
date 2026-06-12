@@ -81,6 +81,7 @@
                 class="whiteboard-overlay"
                 :room-id="String(consultationId)"
                 source="DICOM"
+                :image-id="activeDicomImageId"
                 :user-id="userIdNum"
                 :user-name="userName"
                 :show-toolbar="true"
@@ -252,7 +253,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getChatMessages, finishConsultation } from '@/api/consultation'
@@ -287,6 +288,10 @@ const remoteVideoRef = ref<HTMLVideoElement>()
 const localVideoRef = ref<HTMLVideoElement>()
 const chatMessagesRef = ref<HTMLDivElement>()
 const dicomViewerRef = ref<InstanceType<typeof DicomImageViewer> | null>(null)
+
+const activeDicomImageId = computed<number | undefined>(() => {
+  return dicomViewerRef.value?.activeViewportImageId
+})
 
 const videoPanelWidth = ref(50)
 const activeSideTab = ref('chat')
@@ -523,19 +528,38 @@ const handleWhiteboardSave = (snapshotData: string) => {
 
 const handleWhiteboardSaveToRecord = (snapshotData: string) => {
   console.log('白板快照已保存并插入电子病历', snapshotData.length)
+  showConclusion.value = true
+  activeSideTab.value = 'conclusion'
+  const mark = '\n[白板快照已保存至电子病历附件]\n'
+  if (!conclusionContent.value.includes('[白板快照')) {
+    conclusionContent.value = (conclusionContent.value || '') + mark
+  }
+  ElMessage.success('白板快照已插入电子病历附件')
 }
 
-const loadWhiteboardHistory = async () => {
+watch(
+  () => activeDicomImageId.value,
+  (newImageId) => {
+    if (activeWhiteboardMode.value === 'dicom' && whiteboardEnabled.value) {
+      loadWhiteboardHistory(newImageId)
+    }
+  }
+)
+
+const loadWhiteboardHistory = async (imageId?: number) => {
   try {
     const source = activeWhiteboardMode.value === 'dicom' ? 'DICOM' : 'BLANK'
-    const res = await getWhiteboardHistory(String(consultationId), source)
+    const res = await getWhiteboardHistory(String(consultationId), source, imageId)
     const ops = res.data.operations || []
     nextTick(() => {
       const targetBoard = activeWhiteboardMode.value === 'dicom'
         ? whiteboardRef.value
         : blankWhiteboardRef.value
-      if (targetBoard && ops.length > 0) {
-        targetBoard.applyOps(ops)
+      if (targetBoard) {
+        targetBoard.clearCanvas()
+        if (ops.length > 0) {
+          targetBoard.applyOps(ops)
+        }
       }
     })
   } catch {

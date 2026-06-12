@@ -8,6 +8,8 @@ import com.telemed.common.dto.whiteboard.WhiteboardSnapshotDTO;
 import com.telemed.common.exception.BusinessException;
 import com.telemed.common.vo.whiteboard.WhiteboardHistoryVO;
 import com.telemed.common.vo.whiteboard.WhiteboardOpVO;
+import com.telemed.model.entity.ConsultationConclusion;
+import com.telemed.model.repository.ConsultationConclusionRepository;
 import com.telemed.service.MinioService;
 import com.telemed.service.WhiteboardService;
 import lombok.RequiredArgsConstructor;

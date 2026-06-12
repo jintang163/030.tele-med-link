@@ -209,6 +209,7 @@ const viewports = ref<ViewportState[]>([
 
 const availableImages = computed(() => props.images)
 const activeViewport = computed(() => viewports.value[activeViewportIndex.value])
+const activeViewportImageId = computed(() => activeViewport.value?.imageId)
 
 const layoutCells = computed(() => {
   const [r, c] = layout.value.split('x').map(Number)
@@ -734,7 +735,9 @@ onUnmounted(() => {
 defineExpose({
   handleRemoteViewportSync,
   handleRemoteAnnotationSync,
-  handleResize
+  handleResize,
+  activeViewportImageId,
+  activeViewportIndex
 })
 </script>
 
