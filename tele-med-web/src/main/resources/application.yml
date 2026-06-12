@@ -113,3 +113,10 @@ dicom:
   bucket-name: tele-med-dicom
   token-expire-minutes: 30
   max-concurrent-images: 4
+
+signature:
+  pdf-bucket: tele-med-pdf
+  default-sign-width: 150
+  default-sign-height: 60
+  default-sign-position-x: 400
+  default-sign-position-y: 100
