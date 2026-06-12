@@ -6,6 +6,8 @@ public interface MinioService {
 
     String uploadFile(String bucketName, String objectName, MultipartFile file);
 
+    String uploadBytes(String bucketName, String objectName, byte[] bytes, String contentType);
+
     String uploadString(String content, String objectName);
 
     byte[] downloadFile(String bucketName, String objectName);

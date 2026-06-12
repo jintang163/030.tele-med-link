@@ -16,6 +16,7 @@ import com.telemed.common.vo.mediasoup.TurnServerVO;
 import com.telemed.model.entity.ChatMessage;
 import com.telemed.model.repository.ChatMessageRepository;
 import com.telemed.service.SignalingService;
+import com.telemed.service.WhiteboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -37,6 +38,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
     private final SignalingService signalingService;
     private final WebSocketSessionManager sessionManager;
     private final ChatMessageRepository chatMessageRepository;
+    private final WhiteboardService whiteboardService;
     private final ObjectMapper objectMapper;
 
     private final ConcurrentHashMap<String, WebSocketSession> connectedSessions = new ConcurrentHashMap<>();
@@ -145,6 +147,14 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
             case "dicom-image-added":
                 handleDicomImageAdded(signalingMessage);
+                break;
+
+            case "whiteboard-op":
+                handleWhiteboardOp(signalingMessage, userId);
+                break;
+
+            case "whiteboard-clear":
+                handleWhiteboardClear(signalingMessage, userId);
                 break;
 
             default:
@@ -397,6 +407,66 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             broadcastToRoom(message.getRoomId(), message);
         } catch (Exception e) {
             log.error("处理DICOM影像添加通知失败", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleWhiteboardOp(SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = message.getPayload() != null
+                    ? (Map<String, Object>) message.getPayload()
+                    : null;
+
+            String roomId = message.getRoomId();
+            String source = payload != null && payload.get("source") != null
+                    ? payload.get("source").toString()
+                    : "BLANK";
+            Long imageId = payload != null && payload.get("imageId") != null
+                    ? Long.valueOf(payload.get("imageId").toString())
+                    : null;
+
+            log.debug("处理白板操作: roomId={}, source={}, imageId={}, operator={}",
+                    roomId, source, imageId, userId);
+
+            if (payload != null) {
+                com.telemed.common.dto.whiteboard.WhiteboardOpDTO opDTO =
+                        objectMapper.convertValue(payload, com.telemed.common.dto.whiteboard.WhiteboardOpDTO.class);
+                opDTO.setRoomId(roomId);
+                opDTO.setOperatorId(Long.parseLong(userId));
+                if (opDTO.getTimestamp() == null) {
+                    opDTO.setTimestamp(System.currentTimeMillis());
+                }
+                whiteboardService.recordOp(opDTO);
+            }
+
+            broadcastToRoom(roomId, message);
+        } catch (Exception e) {
+            log.error("处理白板操作失败", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleWhiteboardClear(SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = message.getPayload() != null
+                    ? (Map<String, Object>) message.getPayload()
+                    : null;
+
+            String roomId = message.getRoomId();
+            String source = payload != null && payload.get("source") != null
+                    ? payload.get("source").toString()
+                    : "BLANK";
+            Long imageId = payload != null && payload.get("imageId") != null
+                    ? Long.valueOf(payload.get("imageId").toString())
+                    : null;
+
+            log.info("清除白板: roomId={}, source={}, imageId={}, operator={}",
+                    roomId, source, imageId, userId);
+
+            whiteboardService.clearHistory(roomId, source, imageId, Long.parseLong(userId));
+            broadcastToRoom(roomId, message);
+        } catch (Exception e) {
+            log.error("清除白板失败", e);
         }
     }
 }

@@ -25,6 +25,19 @@
               <el-badge v-if="dicomImages.length > 0" :value="dicomImages.length" class="title-badge" />
             </div>
             <div class="dicom-actions">
+              <el-radio-group v-model="activeWhiteboardMode" size="small" @change="toggleWhiteboardMode">
+                <el-radio-button value="dicom">DICOM</el-radio-button>
+                <el-radio-button value="blank">白板</el-radio-button>
+              </el-radio-group>
+              <el-button
+                size="small"
+                :type="whiteboardEnabled ? 'warning' : 'default'"
+                @click="whiteboardEnabled = !whiteboardEnabled"
+                :disabled="activeWhiteboardMode === 'dicom' && dicomImages.length === 0 && !accessToken"
+              >
+                <el-icon><Brush /></el-icon>
+                {{ whiteboardEnabled ? '关闭画笔' : '开启画笔' }}
+              </el-button>
               <el-button size="small" @click="activeSideTab = 'upload'">
                 <el-icon><Upload /></el-icon>
                 上传
@@ -33,7 +46,7 @@
                 <el-icon><List /></el-icon>
                 列表
               </el-button>
-              <el-button v-if="dicomImages.length > 0 && !accessToken" size="small" type="success" @click="generateShareToken" :loading="generatingToken">
+              <el-button v-if="activeWhiteboardMode === 'dicom' && dicomImages.length > 0 && !accessToken" size="small" type="success" @click="generateShareToken" :loading="generatingToken">
                 <el-icon><Key /></el-icon>
                 分享令牌
               </el-button>
@@ -41,25 +54,57 @@
           </div>
 
           <div class="dicom-body">
-            <DicomImageViewer
-              v-if="dicomImages.length > 0 || accessToken"
-              ref="dicomViewerRef"
-              :images="dicomImages"
-              :access-token="accessToken"
-              :consultation-id="consultationId"
-              :user-id="userIdNum"
-              :user-name="userName"
-              @annotation-sync="handleAnnotationSync"
-              @viewport-sync="handleViewportSync"
-              @image-loaded="handleImageLoaded"
-            />
-            <div v-else class="dicom-empty">
-              <el-empty description="暂无DICOM影像" :image-size="80">
-                <el-button type="primary" size="small" @click="activeSideTab = 'upload'">
-                  <el-icon><Upload /></el-icon>
-                  上传DICOM文件
-                </el-button>
-              </el-empty>
+            <div v-show="activeWhiteboardMode === 'dicom'" class="dicom-view-wrapper">
+              <DicomImageViewer
+                v-if="dicomImages.length > 0 || accessToken"
+                ref="dicomViewerRef"
+                :images="dicomImages"
+                :access-token="accessToken"
+                :consultation-id="consultationId"
+                :user-id="userIdNum"
+                :user-name="userName"
+                @annotation-sync="handleAnnotationSync"
+                @viewport-sync="handleViewportSync"
+                @image-loaded="handleImageLoaded"
+              />
+              <div v-else class="dicom-empty">
+                <el-empty description="暂无DICOM影像" :image-size="80">
+                  <el-button type="primary" size="small" @click="activeSideTab = 'upload'">
+                    <el-icon><Upload /></el-icon>
+                    上传DICOM文件
+                  </el-button>
+                </el-empty>
+              </div>
+              <WhiteboardCanvas
+                v-if="whiteboardEnabled && activeWhiteboardMode === 'dicom'"
+                ref="whiteboardRef"
+                class="whiteboard-overlay"
+                :room-id="String(consultationId)"
+                source="DICOM"
+                :user-id="userIdNum"
+                :user-name="userName"
+                :show-toolbar="true"
+                :transparent-bg="true"
+                @draw="handleWhiteboardDraw"
+                @clear="handleWhiteboardClear"
+                @save="handleWhiteboardSave"
+                @save-to-record="handleWhiteboardSaveToRecord"
+              />
+            </div>
+
+            <div v-show="activeWhiteboardMode === 'blank'" class="blank-whiteboard-wrapper">
+              <WhiteboardCanvas
+                ref="blankWhiteboardRef"
+                :room-id="String(consultationId)"
+                source="BLANK"
+                :user-id="userIdNum"
+                :user-name="userName"
+                :show-toolbar="true"
+                @draw="handleWhiteboardDraw"
+                @clear="handleWhiteboardClear"
+                @save="handleWhiteboardSave"
+                @save-to-record="handleWhiteboardSaveToRecord"
+              />
             </div>
           </div>
         </div>
@@ -216,19 +261,22 @@ import {
   generateConsultationDicomToken,
   deleteDicomImage
 } from '@/api/dicom'
+import { getWhiteboardHistory } from '@/api/whiteboard'
 import { SignalingWebSocket } from '@/utils/websocket'
 import { JanusVideoRoom } from '@/utils/janus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Microphone, Mute, VideoCamera, VideoPause, Picture, Upload, List,
-  ChatDotRound, Delete, Key, CopyDocument, Document
+  ChatDotRound, Delete, Key, CopyDocument, Document, Brush
 } from '@element-plus/icons-vue'
 import type {
   ChatMessage, SignalingMessage, DicomImage,
-  DicomAnnotationSyncPayload, DicomViewportSyncPayload
+  DicomAnnotationSyncPayload, DicomViewportSyncPayload,
+  WhiteboardOp
 } from '@/types'
 import DicomImageViewer from '@/components/DicomImageViewer.vue'
 import DicomUploader from '@/components/DicomUploader.vue'
+import WhiteboardCanvas from '@/components/WhiteboardCanvas.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -256,6 +304,11 @@ const dicomImages = ref<DicomImage[]>([])
 const accessToken = ref('')
 const tokenExpireTime = ref('')
 const generatingToken = ref(false)
+
+const whiteboardEnabled = ref(false)
+const activeWhiteboardMode = ref<'dicom' | 'blank'>('dicom')
+const whiteboardRef = ref<InstanceType<typeof WhiteboardCanvas> | null>(null)
+const blankWhiteboardRef = ref<InstanceType<typeof WhiteboardCanvas> | null>(null)
 
 let videoRoom: JanusVideoRoom | null = null
 let signaling: SignalingWebSocket | null = null
@@ -438,6 +491,66 @@ const handleImageLoaded = (img: DicomImage) => {
   console.log('影像已加载:', img.fileName)
 }
 
+const handleWhiteboardDraw = (op: WhiteboardOp) => {
+  if (!signaling) return
+  const msg: SignalingMessage = {
+    type: 'whiteboard-op',
+    from: userId,
+    to: '',
+    roomId: String(consultationId),
+    payload: op,
+    timestamp: Date.now()
+  }
+  signaling.send(msg)
+}
+
+const handleWhiteboardClear = (payload: any) => {
+  if (!signaling) return
+  const msg: SignalingMessage = {
+    type: 'whiteboard-clear',
+    from: userId,
+    to: '',
+    roomId: String(consultationId),
+    payload,
+    timestamp: Date.now()
+  }
+  signaling.send(msg)
+}
+
+const handleWhiteboardSave = (snapshotData: string) => {
+  console.log('白板快照已生成', snapshotData.length)
+}
+
+const handleWhiteboardSaveToRecord = (snapshotData: string) => {
+  console.log('白板快照已保存并插入电子病历', snapshotData.length)
+}
+
+const loadWhiteboardHistory = async () => {
+  try {
+    const source = activeWhiteboardMode.value === 'dicom' ? 'DICOM' : 'BLANK'
+    const res = await getWhiteboardHistory(String(consultationId), source)
+    const ops = res.data.operations || []
+    nextTick(() => {
+      const targetBoard = activeWhiteboardMode.value === 'dicom'
+        ? whiteboardRef.value
+        : blankWhiteboardRef.value
+      if (targetBoard && ops.length > 0) {
+        targetBoard.applyOps(ops)
+      }
+    })
+  } catch {
+    // ignore
+  }
+}
+
+const toggleWhiteboardMode = (mode: 'dicom' | 'blank') => {
+  activeWhiteboardMode.value = mode
+  if (mode === 'blank') {
+    whiteboardEnabled.value = true
+  }
+  loadWhiteboardHistory()
+}
+
 const handleSignalingMessage = (message: SignalingMessage) => {
   if (message.type === 'chat') {
     const senderId = Number(message.from)
@@ -478,6 +591,30 @@ const handleSignalingMessage = (message: SignalingMessage) => {
     const payload = message.payload as DicomViewportSyncPayload
     if (payload && payload.operatorId !== userIdNum) {
       dicomViewerRef.value?.handleRemoteViewportSync(payload)
+    }
+    return
+  }
+
+  if (message.type === 'whiteboard-op') {
+    const op = message.payload as WhiteboardOp
+    if (op && op.operatorId !== userIdNum) {
+      if (op.source === 'DICOM') {
+        whiteboardRef.value?.addRemoteOp(op)
+      } else {
+        blankWhiteboardRef.value?.addRemoteOp(op)
+      }
+    }
+    return
+  }
+
+  if (message.type === 'whiteboard-clear') {
+    const payload = message.payload as any
+    if (payload && payload.operatorId !== userIdNum) {
+      if (payload.source === 'DICOM') {
+        whiteboardRef.value?.handleClearRemote()
+      } else {
+        blankWhiteboardRef.value?.handleClearRemote()
+      }
     }
     return
   }
@@ -534,6 +671,7 @@ onMounted(async () => {
 
   fetchChatMessages()
   fetchDicomImages()
+  loadWhiteboardHistory()
   chatTimer = setInterval(fetchChatMessages, 5000)
   dicomRefreshTimer = setInterval(fetchDicomImages, 15000)
 })
@@ -921,5 +1059,32 @@ onUnmounted(() => {
   font-size: 16px;
   margin-bottom: 12px;
   color: #303133;
+}
+
+.dicom-view-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.whiteboard-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.whiteboard-overlay :deep(.whiteboard-canvas) {
+  background: transparent;
+}
+
+.whiteboard-overlay :deep(.whiteboard-container) {
+  background: transparent;
+}
+
+.blank-whiteboard-wrapper {
+  width: 100%;
+  height: 100%;
+  background: #fff;
 }
 </style>

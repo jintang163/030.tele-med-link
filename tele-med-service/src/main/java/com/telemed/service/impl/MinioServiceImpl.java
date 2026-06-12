@@ -46,6 +46,24 @@ public class MinioServiceImpl implements MinioService {
     }
 
     @Override
+    public String uploadBytes(String bucketName, String objectName, byte[] bytes, String contentType) {
+        createBucketIfNotExists(bucketName);
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .stream(new java.io.ByteArrayInputStream(bytes), bytes.length, -1)
+                            .contentType(contentType != null ? contentType : "application/octet-stream")
+                            .build()
+            );
+            return objectName;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public String uploadString(String content, String objectName) {
         createBucketIfNotExists(defaultBucket);
         try {

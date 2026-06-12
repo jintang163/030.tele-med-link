@@ -81,7 +81,7 @@ export interface ChatMessage {
 }
 
 export interface SignalingMessage {
-  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left' | 'mediasoup-producer-added' | 'mediasoup-producer-removed' | 'dicom-annotation' | 'dicom-viewport' | 'dicom-image-added'
+  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left' | 'mediasoup-producer-added' | 'mediasoup-producer-removed' | 'dicom-annotation' | 'dicom-viewport' | 'dicom-image-added' | 'whiteboard-op' | 'whiteboard-clear'
   from: string
   to: string
   roomId: string
@@ -339,4 +339,53 @@ export interface QualityReportDTO {
   roundTripTime: number
   bitrate: number
   resolution: VideoResolution
+}
+
+export type WhiteboardTool = 'PEN' | 'ARROW' | 'LINE' | 'RECTANGLE' | 'ELLIPSE' | 'TEXT' | 'ERASER'
+
+export type WhiteboardOperation = 'DRAW' | 'CLEAR' | 'UNDO' | 'REDO'
+
+export type WhiteboardSource = 'BLANK' | 'DICOM'
+
+export interface WhiteboardPoint {
+  x: number
+  y: number
+}
+
+export interface WhiteboardOp {
+  opId: string
+  roomId: string
+  source: WhiteboardSource
+  imageId?: number
+  operation: WhiteboardOperation
+  toolType: WhiteboardTool
+  points: WhiteboardPoint[]
+  properties?: Record<string, any>
+  color: string
+  strokeWidth: number
+  text?: string
+  operatorId: number
+  operatorName: string
+  timestamp: number
+}
+
+export interface WhiteboardHistory {
+  roomId: string
+  source: WhiteboardSource
+  imageId?: number
+  totalOps: number
+  operations: WhiteboardOp[]
+}
+
+export interface WhiteboardSnapshotParams {
+  roomId: string
+  source: WhiteboardSource
+  imageId?: number
+  snapshotData: string
+  format?: string
+  fileName?: string
+  operatorId: number
+  operatorName: string
+  consultationId?: number
+  insertToRecord?: boolean
 }
