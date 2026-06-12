@@ -49,4 +49,10 @@ public interface SignalingService {
     String createMediasoupRoom(String roomName);
 
     void destroyMediasoupRoom(String roomId);
+
+    void broadcastToRoom(String roomId, SignalingMessage message);
+
+    void broadcastDicomAnnotation(SignalingMessage message);
+
+    void broadcastDicomViewport(SignalingMessage message);
 }

@@ -133,6 +133,18 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
                 handleQualityReport(session, signalingMessage, userId);
                 break;
 
+            case "dicom-annotation":
+                handleDicomAnnotation(signalingMessage);
+                break;
+
+            case "dicom-viewport":
+                handleDicomViewport(signalingMessage);
+                break;
+
+            case "dicom-image-added":
+                handleDicomImageAdded(signalingMessage);
+                break;
+
             default:
                 log.warn("Unknown signaling type: {}", signalingMessage.getType());
         }
@@ -324,6 +336,38 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             session.sendMessage(new TextMessage(json));
         } catch (Exception e) {
             log.error("发送 WebSocket 错误响应失败", e);
+        }
+    }
+
+    private void handleDicomAnnotation(SignalingMessage message) {
+        try {
+            log.info("处理DICOM标注同步: imageId={}, type={}, operator={}",
+                    message.getRoomId(),
+                    message.getPayload() != null ? ((Map<?, ?>) message.getPayload()).get("annotationType") : null,
+                    message.getFrom());
+            signalingService.broadcastDicomAnnotation(message);
+        } catch (Exception e) {
+            log.error("处理DICOM标注同步失败", e);
+        }
+    }
+
+    private void handleDicomViewport(SignalingMessage message) {
+        try {
+            log.info("处理DICOM视口同步: roomId={}, operator={}",
+                    message.getRoomId(), message.getFrom());
+            signalingService.broadcastDicomViewport(message);
+        } catch (Exception e) {
+            log.error("处理DICOM视口同步失败", e);
+        }
+    }
+
+    private void handleDicomImageAdded(SignalingMessage message) {
+        try {
+            log.info("处理DICOM影像添加通知: roomId={}, uploader={}",
+                    message.getRoomId(), message.getFrom());
+            signalingService.broadcastToRoom(message.getRoomId(), message);
+        } catch (Exception e) {
+            log.error("处理DICOM影像添加通知失败", e);
         }
     }
 }

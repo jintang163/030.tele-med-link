@@ -81,12 +81,87 @@ export interface ChatMessage {
 }
 
 export interface SignalingMessage {
-  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left' | 'mediasoup-producer-added' | 'mediasoup-producer-removed'
+  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left' | 'mediasoup-producer-added' | 'mediasoup-producer-removed' | 'dicom-annotation' | 'dicom-viewport' | 'dicom-image-added'
   from: string
   to: string
   roomId: string
   payload?: any
   timestamp: number
+}
+
+export interface DicomImage {
+  id: number
+  consultationId: number
+  objectName: string
+  fileName: string
+  patientName?: string
+  studyUid?: string
+  seriesUid?: string
+  instanceUid?: string
+  modality?: string
+  studyDescription?: string
+  seriesDescription?: string
+  sliceIndex?: number
+  uploaderId: number
+  uploaderName?: string
+  fileSize?: number
+  width?: number
+  height?: number
+  windowCenter?: number
+  windowWidth?: number
+  uploadTime: string
+}
+
+export interface DicomToken {
+  token: string
+  imageId?: number
+  consultationId: number
+  expireTime: string
+  expireMinutes: number
+  imageInfo?: DicomImage
+}
+
+export interface DicomAnnotation {
+  annotationId: string
+  imageId: number
+  annotationType: 'POINT' | 'LINE' | 'RECTANGLE' | 'ELLIPSE' | 'ANGLE' | 'TEXT'
+  coordinates: Array<{ x: number; y: number }>
+  properties?: Record<string, any>
+  creatorId?: number
+  creatorName?: string
+  createTime?: number
+  updateTime?: number
+}
+
+export interface DicomAnnotationSyncPayload {
+  annotationId: string
+  imageId: number
+  token?: string
+  annotationType: string
+  coordinates: Array<{ x: number; y: number }>
+  properties?: Record<string, any>
+  operation: 'add' | 'update' | 'delete' | 'clear'
+  operatorId: number
+  operatorName: string
+  timestamp: number
+}
+
+export interface DicomViewportState {
+  imageId: number
+  token?: string
+  windowCenter?: number
+  windowWidth?: number
+  scale?: number
+  translation?: { x: number; y: number }
+  rotation?: number
+  invert?: boolean
+  operatorId: number
+  operatorName: string
+  timestamp: number
+}
+
+export interface DicomViewportSyncPayload extends DicomViewportState {
+  consultationId: number
 }
 
 export interface Hospital {

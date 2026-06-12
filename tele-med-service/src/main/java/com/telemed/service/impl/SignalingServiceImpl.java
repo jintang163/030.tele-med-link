@@ -317,4 +317,38 @@ public class SignalingServiceImpl implements SignalingService {
     private String getNodeHttpUrl(Long nodeId) {
         return "http://localhost:" + (7000 + (nodeId != null ? nodeId.intValue() : 0));
     }
+
+    @Override
+    public void broadcastToRoom(String roomId, SignalingMessage message) {
+        if (roomId == null) {
+            log.warn("房间ID为空，无法广播消息");
+            return;
+        }
+        try {
+            String json = objectMapper.writeValueAsString(message);
+            for (WebSocketSession session : sessionStore.values()) {
+                if (session != null && session.isOpen()) {
+                    try {
+                        session.sendMessage(new TextMessage(json));
+                    } catch (Exception e) {
+                        log.warn("发送消息到会话失败: {}", session.getId(), e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("序列化广播消息失败", e);
+        }
+    }
+
+    @Override
+    public void broadcastDicomAnnotation(SignalingMessage message) {
+        log.info("广播DICOM标注消息: roomId={}, from={}", message.getRoomId(), message.getFrom());
+        broadcastToRoom(message.getRoomId(), message);
+    }
+
+    @Override
+    public void broadcastDicomViewport(SignalingMessage message) {
+        log.info("广播DICOM视口消息: roomId={}, from={}", message.getRoomId(), message.getFrom());
+        broadcastToRoom(message.getRoomId(), message);
+    }
 }
