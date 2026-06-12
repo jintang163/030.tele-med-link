@@ -6,69 +6,52 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "t_appointment")
-public class Appointment {
+@Table(name = "t_patient_notification")
+public class PatientNotification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private Long patientId;
 
-    private Long doctorId;
+    @Column(length = 100)
+    private String patientName;
 
-    private Long hospitalId;
+    @Column(nullable = false, length = 50)
+    private String type;
 
-    private Long campusId;
+    @Column(nullable = false, length = 200)
+    private String title;
 
-    private Long targetCampusId;
+    @Column(nullable = false, length = 500)
+    private String content;
 
-    private Boolean crossCampus = false;
+    @Column(nullable = false)
+    private Integer status = 0;
 
-    private String campusTag;
-
-    private LocalDate appointmentDate;
-
-    private Integer timeSlot;
-
-    private String timeSlotStr;
+    private Long appointmentId;
 
     private Long scheduleSlotId;
 
-    private Integer status;
-
-    @Column(length = 500)
-    private String description;
-
-    private Long consultationId;
-
-    private LocalDateTime expireTime;
+    private Long relatedSlotId;
 
     private LocalDateTime createTime;
-
-    private LocalDateTime updateTime;
 
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
     }
 }

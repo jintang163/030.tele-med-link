@@ -38,4 +38,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findDoctorAppointmentsByDateExcludingStatus(@Param("doctorId") Long doctorId,
                                                                     @Param("date") LocalDate date,
                                                                     @Param("excludeStatus") Integer excludeStatus);
+
+    @Query("SELECT a FROM Appointment a WHERE a.scheduleSlotId = :scheduleSlotId AND a.status <> :excludeStatus")
+    List<Appointment> findByScheduleSlotIdAndStatusNot(@Param("scheduleSlotId") Long scheduleSlotId,
+                                                        @Param("excludeStatus") Integer excludeStatus);
+
+    List<Appointment> findByScheduleSlotId(Long scheduleSlotId);
+
+    @Query("SELECT a FROM Appointment a WHERE a.patientId = :patientId AND a.scheduleSlotId = :scheduleSlotId AND a.status <> :excludeStatus")
+    List<Appointment> findByPatientIdAndScheduleSlotIdAndStatusNot(@Param("patientId") Long patientId,
+                                                                     @Param("scheduleSlotId") Long scheduleSlotId,
+                                                                     @Param("excludeStatus") Integer excludeStatus);
 }

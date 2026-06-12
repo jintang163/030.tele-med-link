@@ -16,7 +16,7 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <span>排班日历 ({{ currentMonthLabel }})</span>
+              <span>排班日历 ({{ currentMonthLabel }}) - 15分钟粒度</span>
               <div>
                 <el-radio-group v-model="viewMode" size="default">
                   <el-radio-button value="dayGridMonth">月视图</el-radio-button>
@@ -98,6 +98,57 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <el-dialog v-model="showSlotDetailDialog" title="时段号源详情" width="440px">
+      <div v-if="detailSlot">
+        <el-descriptions :column="1" border size="default">
+          <el-descriptions-item label="医生">
+            <span class="hl">{{ detailSlot.doctorName }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="科室/院区">
+            {{ detailDoctor?.department || '' }} · {{ detailDoctor?.campusName || '' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="日期">
+            <span class="hl">{{ detailSlot.scheduleDate }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="时段">
+            <span class="hl">{{ detailSlot.slotTime }} - {{ addMinutes(detailSlot.slotTime, 15) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="号源状态">
+            <el-tag
+              :type="detailSlot.status === 'SUSPENDED' ? 'info' : (detailSlot.remaining > 0 ? 'success' : 'danger')"
+            >
+              {{ detailSlot.status === 'SUSPENDED' ? '已停诊' : (detailSlot.remaining > 0 ? '可预约' : '已约满') }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="剩余号源">
+            <el-progress
+              :percentage="Math.round(detailSlot.remaining / Math.max(detailSlot.maxPatients, 1) * 100)"
+              :color="detailSlot.remaining > 0 ? '#67C23A' : '#F56C6C'"
+              :stroke-width="14"
+            />
+            <div style="margin-top: 6px; font-size: 14px; color: #303133;">
+              <span style="color: #409eff; font-weight: 600;">剩余 {{ detailSlot.remaining }}</span>
+              <span style="color: #909399;"> / 共 {{ detailSlot.maxPatients }} 个号源</span>
+            </div>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="detailSlot.suspendReason" label="停诊原因">
+            {{ detailSlot.suspendReason }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <el-button @click="showSlotDetailDialog = false">关闭</el-button>
+        <el-button
+          v-if="detailSlot && detailSlot.status !== 'SUSPENDED' && detailSlot.remaining > 0"
+          type="primary"
+          @click="goToBook"
+        >
+          <el-icon><CalendarPlus /></el-icon>
+          立即预约
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -106,6 +157,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
+import { CalendarPlus } from '@element-plus/icons-vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -117,7 +169,8 @@ import {
   getDoctorSchedule,
   getDoctorTimeSlots
 } from '@/api/crossCampus'
-import type { Campus, DoctorScheduleVO } from '@/types'
+import { getDoctorDaySchedule } from '@/api/schedule'
+import type { Campus, DoctorScheduleVO, ScheduleSlot, Doctor } from '@/types'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -129,8 +182,12 @@ const searchDepartment = ref('')
 const scheduleList = ref<DoctorScheduleVO[]>([])
 const selectedDoctorId = ref<number | null>(null)
 const selectedSchedule = ref<DoctorScheduleVO | null>(null)
-const viewMode = ref('dayGridMonth')
+const viewMode = ref('timeGridWeek')
 const currentDate = ref(new Date())
+
+const showSlotDetailDialog = ref(false)
+const detailSlot = ref<ScheduleSlot | null>(null)
+const detailDoctor = ref<DoctorScheduleVO | null>(null)
 
 const currentMonthLabel = computed(() => {
   const d = currentDate.value
@@ -159,12 +216,15 @@ const calendarOptions = computed<CalendarOptions>(() => ({
   events: [] as any[],
   slotMinTime: '08:00:00',
   slotMaxTime: '18:00:00',
+  slotDuration: '00:15:00',
+  slotLabelInterval: '01:00:00',
   allDaySlot: false,
   eventTimeFormat: {
     hour: '2-digit',
     minute: '2-digit',
     meridiem: false
-  }
+  },
+  dayHeaderFormat: { weekday: 'short', month: 'numeric', day: 'numeric' }
 }))
 
 watch(viewMode, (newVal) => {
@@ -196,7 +256,7 @@ const loadSchedules = async () => {
     const dateStr = formatDateStr(currentDate.value)
     const res = await getCampusSchedules(selectedCampusId.value, dateStr, searchDepartment.value || undefined)
     scheduleList.value = res.data || []
-    updateCalendarEvents()
+    await updateCalendarEvents()
   } catch (e) {
     ElMessage.error('加载排班失败')
   } finally {
@@ -204,7 +264,7 @@ const loadSchedules = async () => {
   }
 }
 
-const updateCalendarEvents = () => {
+const updateCalendarEvents = async () => {
   const calendarApi = calendarRef.value?.getApi()
   if (!calendarApi) return
 
@@ -212,28 +272,21 @@ const updateCalendarEvents = () => {
   const events: any[] = []
 
   for (const schedule of scheduleList.value) {
-    for (const slot of schedule.timeSlots) {
-      const dateStr = schedule.scheduleDate
-      if (slot.code === 0) {
+    const dateStr = schedule.scheduleDate
+    try {
+      const slotRes = await getDoctorDaySchedule(schedule.doctorId, dateStr)
+      const slots: ScheduleSlot[] = slotRes.data || []
+      for (const slot of slots) {
+        const bg = getBgColor(slot)
+        const endT = addMinutes(slot.slotTime, 15)
         events.push({
-          title: `${schedule.doctorName}-${slot.name}${slot.available ? '(可约)' : '(已满)'}`,
-          start: `${dateStr}T${slot.startTime || '08:30:00'}`,
-          end: `${dateStr}T${slot.endTime || '12:00:00'}`,
-          backgroundColor: slot.available ? '#67C23A' : '#909399',
-          borderColor: slot.available ? '#67C23A' : '#909399',
-          extendedProps: {
-            doctorId: schedule.doctorId,
-            schedule,
-            slot
-          }
-        })
-      } else {
-        events.push({
-          title: `${schedule.doctorName}-${slot.name}${slot.available ? '(可约)' : '(已满)'}`,
-          start: `${dateStr}T${slot.startTime || '14:00:00'}`,
-          end: `${dateStr}T${slot.endTime || '17:30:00'}`,
-          backgroundColor: slot.available ? '#67C23A' : '#909399',
-          borderColor: slot.available ? '#67C23A' : '#909399',
+          id: `${slot.id}`,
+          title: `${slot.doctorName || schedule.doctorName} 剩${slot.remaining}/${slot.maxPatients}`,
+          start: `${slot.scheduleDate}T${slot.slotTime}:00`,
+          end: `${slot.scheduleDate}T${endT}:00`,
+          backgroundColor: bg,
+          borderColor: bg,
+          textColor: '#fff',
           extendedProps: {
             doctorId: schedule.doctorId,
             schedule,
@@ -241,10 +294,33 @@ const updateCalendarEvents = () => {
           }
         })
       }
+    } catch (e) {
+      for (const slot of schedule.timeSlots) {
+        const start = slot.startTime || (slot.code === 0 ? '08:30:00' : '14:00:00')
+        const end = slot.endTime || (slot.code === 0 ? '12:00:00' : '17:30:00')
+        events.push({
+          title: `${schedule.doctorName}-${slot.name}${slot.available ? `(剩${slot.remainingCapacity})` : '(已满)'}`,
+          start: `${dateStr}T${start}`,
+          end: `${dateStr}T${end}`,
+          backgroundColor: slot.available ? '#67C23A' : '#909399',
+          borderColor: slot.available ? '#67C23A' : '#909399',
+          extendedProps: {
+            doctorId: schedule.doctorId,
+            schedule,
+            slot,
+            fallback: true
+          }
+        })
+      }
     }
   }
-
   calendarApi.addEventSource(events)
+}
+
+const getBgColor = (slot: ScheduleSlot): string => {
+  if (slot.status === 'SUSPENDED') return '#909399'
+  if (slot.status === 'SHIFTED') return '#E6A23C'
+  return slot.remaining > 0 ? '#67C23A' : '#F56C6C'
 }
 
 const handleSelectDoctor = async (schedule: DoctorScheduleVO) => {
@@ -279,10 +355,32 @@ const handleDateClick = async (arg: any) => {
 
 const handleEventClick = (arg: { event: EventApi }) => {
   const props = arg.event.extendedProps as any
-  if (props.schedule) {
+  if (props.fallback) {
+    if (props.schedule) {
+      selectedDoctorId.value = props.doctorId
+      selectedSchedule.value = props.schedule
+    }
+    return
+  }
+  if (props.slot) {
+    detailSlot.value = props.slot
+    detailDoctor.value = props.schedule
+    showSlotDetailDialog.value = true
+  } else if (props.schedule) {
     selectedDoctorId.value = props.doctorId
     selectedSchedule.value = props.schedule
   }
+}
+
+const goToBook = () => {
+  router.push({ name: 'appointmentBook' })
+}
+
+const addMinutes = (time: string, minutes: number): string => {
+  const [h, m] = time.split(':').map(Number)
+  const d = new Date()
+  d.setHours(h, m + minutes, 0, 0)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 const formatDate = (dateStr: string) => {
@@ -446,5 +544,9 @@ onMounted(() => {
   color: #909399;
   flex: 1;
   margin-left: 12px;
+}
+.hl {
+  color: #409eff;
+  font-weight: 600;
 }
 </style>

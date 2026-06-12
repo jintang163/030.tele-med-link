@@ -12,50 +12,33 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "t_appointment")
-public class Appointment {
+@Table(name = "t_schedule_template")
+public class ScheduleTemplate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long patientId;
-
+    @Column(nullable = false)
     private Long doctorId;
 
-    private Long hospitalId;
+    @Column(nullable = false, length = 100)
+    private String templateName;
 
-    private Long campusId;
+    @Column(nullable = false)
+    private Integer dayOfWeek;
 
-    private Long targetCampusId;
+    @Column(nullable = false, length = 1000)
+    private String slotTimes;
 
-    private Boolean crossCampus = false;
-
-    private String campusTag;
-
-    private LocalDate appointmentDate;
-
-    private Integer timeSlot;
-
-    private String timeSlotStr;
-
-    private Long scheduleSlotId;
-
-    private Integer status;
-
-    @Column(length = 500)
-    private String description;
-
-    private Long consultationId;
-
-    private LocalDateTime expireTime;
+    @Column(nullable = false)
+    private Integer maxPatientsPerSlot = 1;
 
     private LocalDateTime createTime;
 

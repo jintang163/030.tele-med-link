@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -19,43 +20,46 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "t_appointment")
-public class Appointment {
+@Table(name = "t_doctor_schedule_slot", indexes = {
+        @Index(name = "idx_doctor_date_slot", columnList = "doctorId, scheduleDate, slotTime", unique = true),
+        @Index(name = "idx_schedule_date", columnList = "scheduleDate"),
+        @Index(name = "idx_doctor_date", columnList = "doctorId, scheduleDate")
+})
+public class DoctorScheduleSlot {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long patientId;
-
+    @Column(nullable = false)
     private Long doctorId;
 
-    private Long hospitalId;
+    @Column(nullable = false)
+    private LocalDate scheduleDate;
 
-    private Long campusId;
+    @Column(nullable = false, length = 5)
+    private String slotTime;
 
-    private Long targetCampusId;
+    @Column(nullable = false)
+    private Integer slotIndex;
 
-    private Boolean crossCampus = false;
+    @Column(nullable = false)
+    private Integer maxPatients = 1;
 
-    private String campusTag;
+    @Column(nullable = false)
+    private Integer bookedCount = 0;
 
-    private LocalDate appointmentDate;
-
-    private Integer timeSlot;
-
-    private String timeSlotStr;
-
-    private Long scheduleSlotId;
-
-    private Integer status;
+    @Column(nullable = false)
+    private Integer status = 0;
 
     @Column(length = 500)
-    private String description;
+    private String suspendReason;
 
-    private Long consultationId;
+    private Long shiftToDoctorId;
 
-    private LocalDateTime expireTime;
+    private Long shiftToSlotId;
+
+    private Long operatorId;
 
     private LocalDateTime createTime;
 

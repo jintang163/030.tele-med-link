@@ -389,3 +389,110 @@ export interface WhiteboardSnapshotParams {
   consultationId?: number
   insertToRecord?: boolean
 }
+
+export type ScheduleSlotStatus = 'NORMAL' | 'SUSPENDED' | 'SHIFTED'
+
+export interface ScheduleSlot {
+  id: number
+  doctorId: number
+  doctorName?: string
+  scheduleDate: string
+  slotTime: string
+  status: ScheduleSlotStatus
+  maxPatients: number
+  remaining: number
+  suspendReason?: string
+  shiftToDoctorId?: number
+  shiftToDoctorName?: string
+  shiftToDate?: string
+  shiftToSlotTime?: string
+  createTime?: string
+}
+
+export interface DailySchedule {
+  date: string
+  dayOfWeek: number
+  slots: ScheduleSlot[]
+}
+
+export type WeeklySchedule = DailySchedule[]
+
+export interface ScheduleCreateDTO {
+  doctorId: number
+  scheduleDate: string
+  slotTimes: string[]
+  maxPatientsPerSlot: number
+  operatorId: number
+}
+
+export interface ScheduleBatchCopyDTO {
+  doctorId: number
+  sourceStartDate: string
+  sourceEndDate: string
+  targetDates: string[]
+  operatorId: number
+}
+
+export interface ScheduleSuspendDTO {
+  scheduleId: number
+  suspendReason: string
+  operatorId: number
+}
+
+export interface ScheduleShiftDTO {
+  scheduleId: number
+  shiftToDoctorId: number
+  shiftToDate: string
+  shiftToSlotTime: string
+  operatorId: number
+}
+
+export interface ScheduleTemplate {
+  id: number
+  doctorId: number
+  templateName: string
+  dayOfWeek: number
+  dayOfWeekLabel: string
+  slotTimes: string[]
+  maxPatientsPerSlot: number
+  createTime: string
+}
+
+export interface ScheduleTemplateCreateDTO {
+  doctorId: number
+  templateName: string
+  dayOfWeek: number
+  slotTimes: string[]
+  maxPatientsPerSlot: number
+}
+
+export interface AppointmentBookDTO {
+  scheduleSlotId: number
+  patientId: number
+  description?: string
+  patientName?: string
+}
+
+export interface AppointmentRescheduleDTO {
+  appointmentId: number
+  newScheduleSlotId: number
+  reason?: string
+  operatorId: number
+}
+
+export type NotificationType = 'APPOINTMENT_REMINDER' | 'SCHEDULE_SUSPENDED' | 'APPOINTMENT_RESCHEDULED'
+
+export interface PatientNotification {
+  id: number
+  patientId: number
+  patientName?: string
+  type: NotificationType
+  typeText: string
+  title: string
+  content: string
+  status: number
+  statusText: string
+  appointmentId?: number
+  scheduleSlotId?: number
+  createTime: string
+}

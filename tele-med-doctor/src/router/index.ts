@@ -38,6 +38,36 @@ const router = createRouter({
       name: 'dicomTokenViewer',
       component: () => import('@/views/DicomTokenViewer.vue'),
       meta: { requiresAuth: false }
+    },
+    {
+      path: '/schedule/manage',
+      name: 'scheduleManage',
+      component: () => import('@/views/DoctorScheduleManage.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/appointment/book',
+      name: 'appointmentBook',
+      component: () => import('@/views/PatientAppointmentView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/appointment/reschedule',
+      name: 'appointmentReschedule',
+      component: () => import('@/views/AppointmentRescheduleView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/appointment/reschedule/:appointmentId',
+      name: 'appointmentRescheduleWithId',
+      component: () => import('@/views/AppointmentRescheduleView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/notifications',
+      name: 'notificationCenter',
+      component: () => import('@/views/NotificationCenter.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })
