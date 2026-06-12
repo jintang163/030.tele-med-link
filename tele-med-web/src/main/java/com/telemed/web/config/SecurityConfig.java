@@ -29,7 +29,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login", "/api/auth/doctor-login", "/api/wechat/**").permitAll()
                         .requestMatchers("/api/hospital/list", "/api/hospital/campuses", "/api/hospital/doctors").permitAll()
                         .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/api/dicom/token/validate", "/api/dicom/token/url", "/api/dicom/token/info", "/api/dicom/token/images").permitAll()
+                        .requestMatchers("/api/dicom/token/validate", "/api/dicom/token/url", "/api/dicom/token/url-by-image", "/api/dicom/token/info", "/api/dicom/token/images").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

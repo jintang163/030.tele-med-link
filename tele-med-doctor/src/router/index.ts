@@ -32,6 +32,12 @@ const router = createRouter({
       name: 'crossCampusList',
       component: () => import('@/views/CrossCampusListView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/dicom/viewer',
+      name: 'dicomTokenViewer',
+      component: () => import('@/views/DicomTokenViewer.vue'),
+      meta: { requiresAuth: false }
     }
   ]
 })

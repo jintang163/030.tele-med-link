@@ -100,6 +100,13 @@ public class DicomController {
         return Result.ok(url);
     }
 
+    @GetMapping("/token/url-by-image")
+    public Result<String> getImageUrlByTokenAndImageId(@RequestParam String token,
+                                                        @RequestParam Long imageId) {
+        String url = dicomService.getImageUrlByTokenAndImageId(token, imageId);
+        return Result.ok(url);
+    }
+
     @GetMapping("/token/info")
     public Result<DicomImageVO> getImageInfoByToken(@RequestParam String token) {
         DicomImageVO vo = dicomService.getImageInfoByToken(token);

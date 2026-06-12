@@ -151,6 +151,37 @@ public class DicomServiceImpl implements DicomService {
     }
 
     @Override
+    public String getImageUrlByTokenAndImageId(String token, Long imageId) {
+        DicomTokenVO tokenVO = validateToken(token);
+
+        Boolean consultationLevel = false;
+        String tokenKey = DicomConstants.DICOM_TOKEN_PREFIX + token;
+        Object cached = redisTemplate.opsForValue().get(tokenKey);
+        if (cached != null) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> tokenData = objectMapper.convertValue(cached, Map.class);
+                consultationLevel = Boolean.TRUE.equals(tokenData.get("consultationLevel"));
+            } catch (Exception e) {
+                log.warn("解析令牌级别失败", e);
+            }
+        }
+
+        if (!consultationLevel && !imageId.equals(tokenVO.getImageId())) {
+            throw new BusinessException("令牌无权访问该影像");
+        }
+
+        DicomImage image = dicomImageRepository.findById(imageId)
+                .orElseThrow(() -> new BusinessException("影像不存在"));
+
+        if (!image.getConsultationId().equals(tokenVO.getConsultationId())) {
+            throw new BusinessException("影像不属于当前会诊");
+        }
+
+        return minioService.getFileUrl(DicomConstants.DICOM_BUCKET_NAME, image.getObjectName());
+    }
+
+    @Override
     public DicomImageVO getImageInfoByToken(String token) {
         DicomTokenVO tokenVO = validateToken(token);
         return tokenVO.getImageInfo();

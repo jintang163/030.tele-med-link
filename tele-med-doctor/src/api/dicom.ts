@@ -70,6 +70,10 @@ export function getDicomImageUrlByToken(token: string) {
   return request.get<never, { data: string }>(`/dicom/token/url?token=${token}`)
 }
 
+export function getDicomImageUrlByTokenAndImageId(token: string, imageId: number) {
+  return request.get<never, { data: string }>(`/dicom/token/url-by-image?token=${token}&imageId=${imageId}`)
+}
+
 export function getDicomImageInfoByToken(token: string) {
   return request.get<never, { data: DicomImage }>(`/dicom/token/info?token=${token}`)
 }

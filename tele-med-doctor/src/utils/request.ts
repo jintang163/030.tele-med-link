@@ -28,7 +28,9 @@ request.interceptors.response.use(
       if (res.code === 401) {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
-        router.push('/')
+        if (window.location.pathname !== '/dicom/viewer') {
+          router.push('/')
+        }
       }
       return Promise.reject(new Error(res.message || '请求失败'))
     }
@@ -38,7 +40,9 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      router.push('/')
+      if (window.location.pathname !== '/dicom/viewer') {
+        router.push('/')
+      }
     }
     ElMessage.error(error.response?.data?.message || error.message || '网络错误')
     return Promise.reject(error)

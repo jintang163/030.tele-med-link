@@ -1,69 +1,67 @@
 <template>
   <div class="consultation-container">
     <div class="main-content">
-      <div class="content-tabs">
-        <div
-          class="tab-item"
-          :class="{ active: activeMainTab === 'video' }"
-          @click="activeMainTab = 'video'"
-        >
-          <el-icon><VideoCamera /></el-icon>
-          视频问诊
-        </div>
-        <div
-          class="tab-item"
-          :class="{ active: activeMainTab === 'dicom' }"
-          @click="activeMainTab = 'dicom'"
-        >
-          <el-icon><Picture /></el-icon>
-          DICOM 影像
-          <el-badge v-if="dicomImages.length > 0" :value="dicomImages.length" class="tab-badge" />
-        </div>
-      </div>
-
-      <div class="content-area">
-        <div v-show="activeMainTab === 'video'" class="video-area">
+      <div class="split-layout">
+        <div class="video-panel" :style="{ width: videoPanelWidth + '%' }">
           <video ref="remoteVideoRef" class="remote-video" autoplay playsinline />
           <video ref="localVideoRef" class="local-video" autoplay playsinline muted />
           <div class="control-bar">
-            <el-button :type="audioEnabled ? 'primary' : 'danger'" circle @click="toggleAudio">
+            <el-button :type="audioEnabled ? 'primary' : 'danger'" circle size="small" @click="toggleAudio">
               <el-icon><Microphone v-if="audioEnabled" /><Mute v-else /></el-icon>
             </el-button>
-            <el-button :type="videoEnabled ? 'primary' : 'danger'" circle @click="toggleVideo">
+            <el-button :type="videoEnabled ? 'primary' : 'danger'" circle size="small" @click="toggleVideo">
               <el-icon><VideoCamera v-if="videoEnabled" /><VideoPause v-else /></el-icon>
             </el-button>
-            <el-button type="warning" @click="activeMainTab = 'dicom'" :disabled="dicomImages.length === 0">
-              <el-icon><Picture /></el-icon>
-              查看影像 ({{ dicomImages.length }})
-            </el-button>
-            <el-button type="danger" @click="handleEndConsultation" :disabled="consultationEnded">结束问诊</el-button>
+            <el-button type="danger" size="small" @click="handleEndConsultation" :disabled="consultationEnded">结束问诊</el-button>
           </div>
+          <div class="resize-handle" @mousedown="startResize"></div>
         </div>
 
-        <div v-show="activeMainTab === 'dicom'" class="dicom-area">
-          <DicomImageViewer
-            v-if="dicomImages.length > 0 || accessToken"
-            ref="dicomViewerRef"
-            :images="dicomImages"
-            :access-token="accessToken"
-            :consultation-id="consultationId"
-            :user-id="userIdNum"
-            :user-name="userName"
-            @annotation-sync="handleAnnotationSync"
-            @viewport-sync="handleViewportSync"
-            @image-loaded="handleImageLoaded"
-          />
-          <el-empty
-            v-else
-            description="暂无DICOM影像，请先上传"
-            :image-size="120"
-            class="dicom-empty"
-          >
-            <el-button type="primary" @click="activeSideTab = 'upload'">
-              <el-icon><Upload /></el-icon>
-              上传DICOM文件
-            </el-button>
-          </el-empty>
+        <div class="dicom-panel" :style="{ width: (100 - videoPanelWidth) + '%' }">
+          <div class="dicom-header">
+            <div class="dicom-title">
+              <el-icon><Picture /></el-icon>
+              <span>DICOM 影像</span>
+              <el-badge v-if="dicomImages.length > 0" :value="dicomImages.length" class="title-badge" />
+            </div>
+            <div class="dicom-actions">
+              <el-button size="small" @click="activeSideTab = 'upload'">
+                <el-icon><Upload /></el-icon>
+                上传
+              </el-button>
+              <el-button size="small" @click="activeSideTab = 'images'">
+                <el-icon><List /></el-icon>
+                列表
+              </el-button>
+              <el-button v-if="dicomImages.length > 0 && !accessToken" size="small" type="success" @click="generateShareToken" :loading="generatingToken">
+                <el-icon><Key /></el-icon>
+                分享令牌
+              </el-button>
+            </div>
+          </div>
+
+          <div class="dicom-body">
+            <DicomImageViewer
+              v-if="dicomImages.length > 0 || accessToken"
+              ref="dicomViewerRef"
+              :images="dicomImages"
+              :access-token="accessToken"
+              :consultation-id="consultationId"
+              :user-id="userIdNum"
+              :user-name="userName"
+              @annotation-sync="handleAnnotationSync"
+              @viewport-sync="handleViewportSync"
+              @image-loaded="handleImageLoaded"
+            />
+            <div v-else class="dicom-empty">
+              <el-empty description="暂无DICOM影像" :image-size="80">
+                <el-button type="primary" size="small" @click="activeSideTab = 'upload'">
+                  <el-icon><Upload /></el-icon>
+                  上传DICOM文件
+                </el-button>
+              </el-empty>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -154,11 +152,6 @@
                 </div>
               </div>
               <div class="image-actions">
-                <el-tooltip content="在查看器中打开">
-                  <el-button size="small" @click="openImageInViewer(img)">
-                    <el-icon><View /></el-icon>
-                  </el-button>
-                </el-tooltip>
                 <el-tooltip v-if="img.uploaderId === userIdNum" content="删除">
                   <el-button size="small" type="danger" @click="handleDeleteImage(img.id)">
                     <el-icon><Delete /></el-icon>
@@ -167,21 +160,9 @@
               </div>
             </div>
 
-            <div v-if="dicomImages.length > 0 && !accessToken" class="token-section">
-              <el-divider>会诊共享令牌</el-divider>
-              <div class="token-desc">
-                生成临时访问令牌（30分钟有效），分享给其他参会者查看影像
-              </div>
-              <el-button
-                type="success"
-                :loading="generatingToken"
-                style="width: 100%"
-                @click="generateShareToken"
-              >
-                <el-icon><Key /></el-icon>
-                生成访问令牌
-              </el-button>
-              <div v-if="accessToken" class="token-display">
+            <div v-if="accessToken" class="token-section">
+              <el-divider>共享令牌</el-divider>
+              <div class="token-display">
                 <el-input v-model="accessToken" readonly size="small">
                   <template #append>
                     <el-button @click="copyToken">
@@ -239,8 +220,8 @@ import { SignalingWebSocket } from '@/utils/websocket'
 import { JanusVideoRoom } from '@/utils/janus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Microphone, Mute, VideoCamera, VideoPause, Picture, Upload,
-  ChatDotRound, View, Delete, Key, CopyDocument, Document
+  Microphone, Mute, VideoCamera, VideoPause, Picture, Upload, List,
+  ChatDotRound, Delete, Key, CopyDocument, Document
 } from '@element-plus/icons-vue'
 import type {
   ChatMessage, SignalingMessage, DicomImage,
@@ -259,7 +240,7 @@ const localVideoRef = ref<HTMLVideoElement>()
 const chatMessagesRef = ref<HTMLDivElement>()
 const dicomViewerRef = ref<InstanceType<typeof DicomImageViewer> | null>(null)
 
-const activeMainTab = ref<'video' | 'dicom'>('video')
+const videoPanelWidth = ref(50)
 const activeSideTab = ref('chat')
 
 const chatMessages = ref<ChatMessage[]>([])
@@ -386,19 +367,6 @@ const handleSubmitConclusion = async () => {
 
 const handleImagesUploaded = (newImages: DicomImage[]) => {
   dicomImages.value = [...dicomImages.value, ...newImages]
-  if (activeMainTab.value !== 'dicom') {
-    ElMessage({
-      type: 'success',
-      message: `已上传 ${newImages.length} 张影像，是否切换到影像查看？`,
-      showClose: true,
-      duration: 0,
-      onClose: () => {},
-    })
-  }
-}
-
-const openImageInViewer = (_img: DicomImage) => {
-  activeMainTab.value = 'dicom'
 }
 
 const handleDeleteImage = async (imageId: number) => {
@@ -432,8 +400,9 @@ const generateShareToken = async () => {
 
 const copyToken = async () => {
   try {
-    await navigator.clipboard.writeText(accessToken.value)
-    ElMessage.success('令牌已复制到剪贴板')
+    const viewerUrl = `${window.location.origin}/dicom/viewer?token=${accessToken.value}`
+    await navigator.clipboard.writeText(viewerUrl)
+    ElMessage.success('访问链接已复制到剪贴板')
   } catch {
     ElMessage.error('复制失败，请手动复制')
   }
@@ -518,6 +487,35 @@ const handleSignalingMessage = (message: SignalingMessage) => {
   }
 }
 
+let resizing = false
+
+function startResize(e: MouseEvent) {
+  e.preventDefault()
+  resizing = true
+  const startX = e.clientX
+  const startWidth = videoPanelWidth.value
+
+  const onMouseMove = (ev: MouseEvent) => {
+    if (!resizing) return
+    const containerEl = document.querySelector('.split-layout')
+    if (!containerEl) return
+    const containerWidth = containerEl.clientWidth
+    const delta = ev.clientX - startX
+    const newWidth = startWidth + (delta / containerWidth) * 100
+    videoPanelWidth.value = Math.max(20, Math.min(80, newWidth))
+  }
+
+  const onMouseUp = () => {
+    resizing = false
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+    dicomViewerRef.value?.handleResize()
+  }
+
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
+
 onMounted(async () => {
   if (!localVideoRef.value || !remoteVideoRef.value) return
 
@@ -571,72 +569,35 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.content-tabs {
-  display: flex;
-  background: #2a2a4a;
-  border-bottom: 1px solid #3a3a5a;
-  padding: 0 16px;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.tab-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  color: #a0a0c0;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  font-size: 14px;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.tab-item:hover {
-  color: #e0e0ff;
-  background: rgba(64, 158, 255, 0.1);
-}
-
-.tab-item.active {
-  color: #fff;
-  border-bottom-color: #409eff;
-  background: rgba(64, 158, 255, 0.15);
-}
-
-.tab-badge {
-  margin-left: 4px;
-}
-
-.content-area {
+.split-layout {
   flex: 1;
-  position: relative;
+  display: flex;
   min-height: 0;
-  background: #0a0a1a;
+  position: relative;
 }
 
-.video-area {
-  width: 100%;
-  height: 100%;
+.video-panel {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #000;
+  min-width: 200px;
+  overflow: hidden;
 }
 
 .remote-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: #000;
 }
 
 .local-video {
   position: absolute;
-  bottom: 80px;
-  right: 20px;
-  width: 240px;
-  height: 180px;
+  bottom: 60px;
+  right: 12px;
+  width: 180px;
+  height: 135px;
   border-radius: 8px;
   border: 2px solid #409eff;
   object-fit: cover;
@@ -646,20 +607,72 @@ onUnmounted(() => {
 
 .control-bar {
   position: absolute;
-  bottom: 20px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 12px;
-  padding: 10px 20px;
+  gap: 8px;
+  padding: 8px 16px;
   background: rgba(0, 0, 0, 0.75);
-  border-radius: 12px;
+  border-radius: 10px;
   z-index: 20;
 }
 
-.dicom-area {
-  width: 100%;
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
   height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 30;
+  transition: background 0.2s;
+}
+
+.resize-handle:hover {
+  background: rgba(64, 158, 255, 0.5);
+}
+
+.dicom-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  background: #1a1a1a;
+  border-left: 2px solid #2a2a4a;
+}
+
+.dicom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #3a3a3a;
+  flex-shrink: 0;
+}
+
+.dicom-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e0e0e0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.title-badge {
+  margin-left: 2px;
+}
+
+.dicom-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.dicom-body {
+  flex: 1;
+  min-height: 0;
   position: relative;
 }
 
@@ -669,10 +682,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #1a1a1a;
 }
 
 .side-panel {
-  width: 400px;
+  width: 360px;
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -884,13 +898,6 @@ onUnmounted(() => {
 
 .token-section {
   margin-top: 16px;
-}
-
-.token-desc {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 10px;
-  line-height: 1.5;
 }
 
 .token-display {

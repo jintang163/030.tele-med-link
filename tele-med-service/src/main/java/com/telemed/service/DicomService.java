@@ -19,6 +19,8 @@ public interface DicomService {
 
     String getImageUrlByToken(String token);
 
+    String getImageUrlByTokenAndImageId(String token, Long imageId);
+
     DicomImageVO getImageInfoByToken(String token);
 
     void deleteImage(Long imageId, Long operatorId);

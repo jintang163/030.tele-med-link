@@ -76,22 +76,24 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
             case "join":
                 sessionManager.register(userId, session.getId());
+                sessionManager.joinRoom(signalingMessage.getRoomId(), userId);
                 SignalingMessage joinNotify = new SignalingMessage();
                 joinNotify.setType("user-joined");
                 joinNotify.setFrom(userId);
                 joinNotify.setRoomId(signalingMessage.getRoomId());
                 joinNotify.setTimestamp(System.currentTimeMillis());
-                broadcastToAll(joinNotify);
+                broadcastToRoom(signalingMessage.getRoomId(), joinNotify);
                 break;
 
             case "leave":
                 sessionManager.remove(userId);
+                sessionManager.leaveRoom(signalingMessage.getRoomId(), userId);
                 SignalingMessage leaveNotify = new SignalingMessage();
                 leaveNotify.setType("user-left");
                 leaveNotify.setFrom(userId);
                 leaveNotify.setRoomId(signalingMessage.getRoomId());
                 leaveNotify.setTimestamp(System.currentTimeMillis());
-                broadcastToAll(leaveNotify);
+                broadcastToRoom(signalingMessage.getRoomId(), leaveNotify);
                 break;
 
             case "chat":
@@ -102,7 +104,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
                 chatMessage.setCreateTime(LocalDateTime.now());
                 chatMessageRepository.save(chatMessage);
 
-                signalingService.relaySignaling(signalingMessage);
+                broadcastToRoom(signalingMessage.getRoomId(), signalingMessage);
                 break;
 
             case "mediasoup-transport-create":
@@ -205,6 +207,33 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             }
         } catch (Exception e) {
             log.error("Failed to broadcast message", e);
+        }
+    }
+
+    private void broadcastToRoom(String roomId, SignalingMessage message) {
+        if (roomId == null || roomId.isEmpty()) {
+            broadcastToAll(message);
+            return;
+        }
+        try {
+            String json = objectMapper.writeValueAsString(message);
+            java.util.Set<String> roomUsers = sessionManager.getRoomUsers(roomId);
+            if (roomUsers.isEmpty()) {
+                for (WebSocketSession s : connectedSessions.values()) {
+                    if (s.isOpen()) {
+                        s.sendMessage(new TextMessage(json));
+                    }
+                }
+                return;
+            }
+            for (String uid : roomUsers) {
+                WebSocketSession s = connectedSessions.get(uid);
+                if (s != null && s.isOpen()) {
+                    s.sendMessage(new TextMessage(json));
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to broadcast message to room: {}", roomId, e);
         }
     }
 
@@ -341,11 +370,11 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     private void handleDicomAnnotation(SignalingMessage message) {
         try {
-            log.info("处理DICOM标注同步: imageId={}, type={}, operator={}",
+            log.info("处理DICOM标注同步: roomId={}, type={}, operator={}",
                     message.getRoomId(),
                     message.getPayload() != null ? ((Map<?, ?>) message.getPayload()).get("annotationType") : null,
                     message.getFrom());
-            signalingService.broadcastDicomAnnotation(message);
+            broadcastToRoom(message.getRoomId(), message);
         } catch (Exception e) {
             log.error("处理DICOM标注同步失败", e);
         }
@@ -355,7 +384,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         try {
             log.info("处理DICOM视口同步: roomId={}, operator={}",
                     message.getRoomId(), message.getFrom());
-            signalingService.broadcastDicomViewport(message);
+            broadcastToRoom(message.getRoomId(), message);
         } catch (Exception e) {
             log.error("处理DICOM视口同步失败", e);
         }
@@ -365,7 +394,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         try {
             log.info("处理DICOM影像添加通知: roomId={}, uploader={}",
                     message.getRoomId(), message.getFrom());
-            signalingService.broadcastToRoom(message.getRoomId(), message);
+            broadcastToRoom(message.getRoomId(), message);
         } catch (Exception e) {
             log.error("处理DICOM影像添加通知失败", e);
         }

@@ -163,7 +163,9 @@ import {
   setToolActive, getViewport, setViewport, resetViewport,
   resize, type DicomTool
 } from '@/utils/cornerstone'
-import { getDicomImageUrlByToken } from '@/api/dicom'
+import * as cornerstone from 'cornerstone-core'
+import * as cornerstoneTools from 'cornerstone-tools'
+import { getDicomImageUrlByToken, getDicomImageUrlByTokenAndImageId } from '@/api/dicom'
 
 const props = defineProps<{
   images: DicomImage[]
@@ -295,8 +297,17 @@ async function onSelectImage(vpIdx: number, imageId: number) {
   try {
     let imageUrl = ''
     if (props.accessToken) {
-      const res = await getDicomImageUrlByToken(props.accessToken)
-      imageUrl = res.data
+      try {
+        const urlRes = await getDicomImageUrlByTokenAndImageId(props.accessToken, imageId)
+        imageUrl = urlRes.data
+      } catch {
+        try {
+          const urlRes = await getDicomImageUrlByToken(props.accessToken)
+          imageUrl = urlRes.data
+        } catch {
+          imageUrl = await fetchImageUrlDirect(imageId)
+        }
+      }
     } else {
       imageUrl = await fetchImageUrlDirect(imageId)
     }
@@ -459,7 +470,7 @@ function onViewportCommand(cmd: string, idx: number) {
       if (el) resetViewport(el)
       break
     case 'clearAnnotations':
-      // TODO: clear cornerstone tools
+      if (el) clearAnnotationsForElement(el)
       emitAnnotationSync(idx, 'clear', {})
       break
     case 'unload':
@@ -520,8 +531,166 @@ function handleRemoteViewportSync(payload: DicomViewportSyncPayload) {
 
 function handleRemoteAnnotationSync(payload: DicomAnnotationSyncPayload) {
   if (payload.operatorId === props.userId) return
-  // TODO: apply annotations to cornerstone tools
-  console.log('Received remote annotation', payload)
+
+  const toolNameMap: Record<string, string> = {
+    POINT: 'ArrowAnnotate',
+    LINE: 'Length',
+    RECTANGLE: 'RectangleRoi',
+    ELLIPSE: 'EllipticalRoi',
+    ANGLE: 'Angle',
+    TEXT: 'ArrowAnnotate',
+    Length: 'Length',
+    RectangleRoi: 'RectangleRoi',
+    EllipticalRoi: 'EllipticalRoi',
+    Angle: 'Angle',
+    ArrowAnnotate: 'ArrowAnnotate'
+  }
+
+  if (payload.operation === 'clear') {
+    const count = layoutCells.value
+    for (let i = 0; i < count; i++) {
+      const vp = viewports.value[i]
+      if (vp.imageId === payload.imageId && vp.loaded) {
+        const el = viewportRefs.value[i]
+        if (el) {
+          clearAnnotationsForElement(el)
+        }
+      }
+    }
+    return
+  }
+
+  if (payload.operation === 'delete') {
+    const count = layoutCells.value
+    for (let i = 0; i < count; i++) {
+      const vp = viewports.value[i]
+      if (vp.imageId === payload.imageId && vp.loaded) {
+        const el = viewportRefs.value[i]
+        if (el) {
+          removeAnnotationById(el, payload.annotationId, toolNameMap[payload.annotationType])
+        }
+      }
+    }
+    return
+  }
+
+  if (payload.operation === 'add' || payload.operation === 'update') {
+    const toolName = toolNameMap[payload.annotationType]
+    if (!toolName || !payload.coordinates || payload.coordinates.length === 0) return
+
+    const count = layoutCells.value
+    for (let i = 0; i < count; i++) {
+      const vp = viewports.value[i]
+      if (vp.imageId === payload.imageId && vp.loaded) {
+        const el = viewportRefs.value[i]
+        if (el) {
+          addRemoteAnnotation(el, toolName, payload)
+        }
+      }
+    }
+  }
+}
+
+function clearAnnotationsForElement(el: HTMLElement) {
+  try {
+    const toolNames = ['Length', 'RectangleRoi', 'EllipticalRoi', 'Angle', 'ArrowAnnotate']
+    toolNames.forEach(name => {
+      try {
+        cornerstoneTools.clearToolState(el, name)
+      } catch { /* ignore */ }
+    })
+    cornerstone.updateImage(el)
+  } catch (e) {
+    console.warn('清除标注失败', e)
+  }
+}
+
+function removeAnnotationById(el: HTMLElement, annotationId: string, toolName?: string) {
+  try {
+    if (toolName) {
+      const toolState = cornerstoneTools.getToolState(el, toolName)
+      if (toolState && toolState.data) {
+        toolState.data = toolState.data.filter((d: any) => d.uuid !== annotationId)
+        cornerstone.updateImage(el)
+      }
+    } else {
+      const toolNames = ['Length', 'RectangleRoi', 'EllipticalRoi', 'Angle', 'ArrowAnnotate']
+      toolNames.forEach(name => {
+        try {
+          const toolState = cornerstoneTools.getToolState(el, name)
+          if (toolState && toolState.data) {
+            const before = toolState.data.length
+            toolState.data = toolState.data.filter((d: any) => d.uuid !== annotationId)
+            if (toolState.data.length < before) {
+              cornerstone.updateImage(el)
+            }
+          }
+        } catch { /* ignore */ }
+      })
+    }
+  } catch (e) {
+    console.warn('删除标注失败', e)
+  }
+}
+
+function addRemoteAnnotation(el: HTMLElement, toolName: string, payload: DicomAnnotationSyncPayload) {
+  try {
+    const coords = payload.coordinates
+    if (!coords || coords.length === 0) return
+
+    const measurementData: any = {
+      uuid: payload.annotationId,
+      visible: true,
+      active: false,
+      color: payload.properties?.color || '#00ff00',
+      handles: {}
+    }
+
+    if (toolName === 'Length') {
+      measurementData.handles = {
+        start: { x: coords[0]?.x || 0, y: coords[0]?.y || 0 },
+        end: { x: coords[1]?.x || 0, y: coords[1]?.y || 0 }
+      }
+    } else if (toolName === 'RectangleRoi') {
+      measurementData.handles = {
+        start: { x: coords[0]?.x || 0, y: coords[0]?.y || 0 },
+        end: { x: coords[1]?.x || 0, y: coords[1]?.y || 0 }
+      }
+    } else if (toolName === 'EllipticalRoi') {
+      measurementData.handles = {
+        start: { x: coords[0]?.x || 0, y: coords[0]?.y || 0 },
+        end: { x: coords[1]?.x || 0, y: coords[1]?.y || 0 }
+      }
+    } else if (toolName === 'Angle') {
+      measurementData.handles = {
+        start: { x: coords[0]?.x || 0, y: coords[0]?.y || 0 },
+        middle: { x: coords[1]?.x || 0, y: coords[1]?.y || 0 },
+        end: { x: coords[2]?.x || 0, y: coords[2]?.y || 0 }
+      }
+    } else if (toolName === 'ArrowAnnotate') {
+      measurementData.handles = {
+        start: { x: coords[0]?.x || 0, y: coords[0]?.y || 0 },
+        end: { x: coords[1]?.x || 0, y: coords[1]?.y || 0 },
+        textBox: {}
+      }
+      measurementData.text = payload.properties?.text || ''
+    }
+
+    const existingState = cornerstoneTools.getToolState(el, toolName)
+    if (existingState && existingState.data) {
+      const existingIdx = existingState.data.findIndex((d: any) => d.uuid === payload.annotationId)
+      if (existingIdx >= 0) {
+        existingState.data[existingIdx] = measurementData
+        cornerstone.updateImage(el)
+        return
+      }
+    }
+
+    cornerstoneTools.addToolState(el, toolName, measurementData)
+    cornerstone.updateImage(el)
+  } catch (e) {
+    console.warn('添加远程标注失败', e)
+  }
 }
 
 function handleResize() {
