@@ -18,6 +18,8 @@ import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.element.Cell;
+import com.telemed.common.util.HashUtil;
+import com.telemed.common.util.QrCodeUtil;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.signatures.BouncyCastleDigest;
@@ -33,6 +35,7 @@ import com.telemed.service.MinioService;
 import com.telemed.service.PdfService;
 import com.telemed.service.Sm2SignatureService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -49,6 +52,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PdfServiceImpl implements PdfService {
@@ -61,6 +65,15 @@ public class PdfServiceImpl implements PdfService {
 
     @Value("${signature.pdf-bucket:tele-med-pdf}")
     private String pdfBucket;
+
+    @Value("${blockchain.verify-base-url:http://localhost:8080/api/blockchain/verify}")
+    private String blockchainVerifyBaseUrl;
+
+    @Value("${blockchain.provider:antchain}")
+    private String blockchainProvider;
+
+    @Value("${blockchain.browser-url:}")
+    private String blockchainBrowserUrl;
 
     private static final float PAGE_WIDTH = PageSize.A4.getWidth();
     private static final float PAGE_HEIGHT = PageSize.A4.getHeight();
@@ -176,10 +189,77 @@ public class PdfServiceImpl implements PdfService {
 
             canvas.endText();
 
+            String contentHash = calculateContentHash(dto);
+            addBlockchainVerifySection(document, pdfDoc, font, contentHash, dto.getConsultationNo());
+
             document.close();
             return outputStream.toByteArray();
         } catch (Exception e) {
             throw new BusinessException("生成PDF失败: " + e.getMessage());
+        }
+    }
+
+    private String calculateContentHash(PdfGenerateDTO dto) {
+        StringBuilder contentBuilder = new StringBuilder();
+        contentBuilder.append(dto.getConsultationNo()).append("|");
+        contentBuilder.append(dto.getPatientName()).append("|");
+        contentBuilder.append(dto.getPatientIdCard()).append("|");
+        contentBuilder.append(dto.getConclusionContent()).append("|");
+        contentBuilder.append(dto.getDoctorName()).append("|");
+        contentBuilder.append(dto.getHospitalName()).append("|");
+        contentBuilder.append(System.currentTimeMillis());
+        return HashUtil.sha256Hex(contentBuilder.toString());
+    }
+
+    private void addBlockchainVerifySection(Document document, PdfDocument pdfDoc, PdfFont font,
+                                             String contentHash, String consultationNo) {
+        try {
+            document.add(new Paragraph("\n"));
+
+            Table verifyTable = new Table(UnitValue.createPercentArray(new float[]{2, 3}))
+                    .setWidth(UnitValue.createPercentValue(100))
+                    .setMarginTop(20);
+
+            String verifyUrl = generateBlockchainVerifyUrl(contentHash, consultationNo);
+            byte[] qrCodeBytes = QrCodeUtil.generateQrCodePng(verifyUrl, 120, 120);
+            ImageData qrImageData = ImageDataFactory.create(qrCodeBytes);
+            Image qrImage = new Image(qrImageData);
+            qrImage.setWidth(120);
+            qrImage.setHeight(120);
+
+            Cell qrCell = new Cell().add(qrImage).setTextAlignment(TextAlignment.CENTER);
+            qrCell.setPadding(10);
+            verifyTable.addCell(qrCell);
+
+            Paragraph infoText = new Paragraph()
+                    .add(new Paragraph("区块链存证核验")
+                            .setFont(font).setFontSize(14).setBold()
+                            .setMarginBottom(10))
+                    .add(new Paragraph("扫描二维码核验文件真伪")
+                            .setFont(font).setFontSize(10)
+                            .setMarginBottom(5))
+                    .add(new Paragraph("文件哈希:")
+                            .setFont(font).setFontSize(9))
+                    .add(new Paragraph(contentHash)
+                            .setFont(font).setFontSize(8))
+                    .add(new Paragraph("会诊编号: " + consultationNo)
+                            .setFont(font).setFontSize(9)
+                            .setMarginTop(5))
+                    .add(new Paragraph("存证平台: " + getBlockchainProviderName())
+                            .setFont(font).setFontSize(9)
+                            .setMarginTop(5))
+                    .add(new Paragraph("本文件已通过司法区块链存证")
+                            .setFont(font).setFontSize(9)
+                            .setMarginTop(5));
+
+            Cell infoCell = new Cell().add(infoText);
+            infoCell.setPadding(10);
+            verifyTable.addCell(infoCell);
+
+            document.add(verifyTable);
+
+        } catch (Exception e) {
+            log.warn("添加区块链核验区域失败", e);
         }
     }
 
@@ -345,6 +425,29 @@ public class PdfServiceImpl implements PdfService {
             return java.util.Base64.getDecoder().decode(base64Data);
         } catch (Exception e) {
             throw new BusinessException("解析签名图片失败: " + e.getMessage());
+        }
+    }
+
+    private String generateBlockchainVerifyUrl(String contentHash, String consultationNo) {
+        if (blockchainBrowserUrl != null && !blockchainBrowserUrl.trim().isEmpty()) {
+            String separator = blockchainBrowserUrl.contains("?") ? "&" : "?";
+            return blockchainBrowserUrl + separator + "hash=" + contentHash
+                    + "&consultationNo=" + consultationNo
+                    + "&provider=" + blockchainProvider;
+        }
+        String separator = blockchainVerifyBaseUrl.contains("?") ? "&" : "?";
+        return blockchainVerifyBaseUrl + separator + "hash=" + contentHash
+                + "&consultationNo=" + consultationNo
+                + "&provider=" + blockchainProvider;
+    }
+
+    private String getBlockchainProviderName() {
+        if ("antchain".equalsIgnoreCase(blockchainProvider)) {
+            return "蚂蚁链";
+        } else if ("zhixinchain".equalsIgnoreCase(blockchainProvider)) {
+            return "至信链";
+        } else {
+            return blockchainProvider != null ? blockchainProvider.toUpperCase() : "司法区块链";
         }
     }
 

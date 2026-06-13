@@ -38,8 +38,39 @@ public class ConsultationConclusion {
 
     private LocalDateTime createTime;
 
+    @Column(length = 128)
+    private String depositHash;
+
+    private LocalDateTime depositTimestamp;
+
+    @Column(length = 128)
+    private String depositTxHash;
+
+    @Column(columnDefinition = "INT DEFAULT 0")
+    private Integer depositStatus;
+
+    @Column(columnDefinition = "INT DEFAULT 0")
+    private Integer depositRetryCount;
+
+    @Column(length = 32)
+    private String depositProvider;
+
+    @Column(length = 64)
+    private String depositBlockHeight;
+
+    private LocalDateTime depositBlockTime;
+
+    @Column(length = 512)
+    private String depositVerifyUrl;
+
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
+        if (depositStatus == null) {
+            depositStatus = 0;
+        }
+        if (depositRetryCount == null) {
+            depositRetryCount = 0;
+        }
     }
 }

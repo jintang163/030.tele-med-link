@@ -135,3 +135,25 @@ face-verify:
     access-key-id: your-access-key-id
     access-key-secret: your-access-key-secret
     region: cn-shanghai
+
+blockchain:
+  provider: antchain
+  hash-algorithm: SHA-256
+  max-retry-count: 3
+  retry-interval-seconds: 10
+  pdf-bucket: tele-med-pdf
+  verify-base-url: http://localhost:8080/api/blockchain/verify
+  browser-url:
+  antchain:
+    enabled: false
+    endpoint: https://rest.antchain.aliyuncs.com
+    access-key-id: your-antchain-access-key-id
+    access-key-secret: your-antchain-access-key-secret
+    contract-name: your-contract-name
+    method: deposit
+  zhixinchain:
+    enabled: false
+    endpoint: https://api.zhixinchain.com
+    app-id: your-zhixinchain-app-id
+    app-secret: your-zhixinchain-app-secret
+    biz-id: your-biz-id

@@ -27,6 +27,7 @@ import com.telemed.service.ConsultationSignatureService;
 import com.telemed.service.MinioService;
 import com.telemed.service.PdfService;
 import com.telemed.service.WhiteboardService;
+import com.telemed.service.impl.BlockchainDepositServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,7 @@ public class ConsultationSignatureServiceImpl implements ConsultationSignatureSe
     private final PdfService pdfService;
     private final MinioService minioService;
     private final WhiteboardService whiteboardService;
+    private final BlockchainDepositServiceImpl blockchainDepositService;
 
     @Value("${minio.bucketName}")
     private String defaultBucket;
@@ -183,6 +185,8 @@ public class ConsultationSignatureServiceImpl implements ConsultationSignatureSe
             }
             conclusion.setFileUrl(pdfObjectName);
             consultationConclusionRepository.save(conclusion);
+
+            blockchainDepositService.depositPdfAsync(signDTO.getConsultationId());
         } else {
             saveIntermediatePdf(currentPdf, consultation.getConsultationNo());
         }
