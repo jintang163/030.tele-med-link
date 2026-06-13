@@ -63,4 +63,61 @@
       <text class="waiting-text">等待全部医生签名后可下载认定书</text>
     </view>
   </view>
+
+  <view class="card diagnosis-card" wx:if="{{diagnosisSuggestion}}">
+    <view class="diagnosis-header">
+      <view class="diagnosis-title">🤖 AI 辅助诊断参考</view>
+      <view class="diagnosis-disclaimer-tag">仅供参考，不替代最终诊断</view>
+    </view>
+
+    <view class="diagnosis-disclaimer-warning">
+      <text>⚠️ {{diagnosisSuggestion.disclaimer}}</text>
+    </view>
+
+    <view class="diagnosis-primary">
+      <view class="primary-label">主要倾向</view>
+      <view class="primary-disease-name">{{diagnosisSuggestion.primaryDisease}}</view>
+      <view class="primary-confidence confidence-high" wx:if="{{diagnosisSuggestion.primaryConfidence >= 80}}">
+        置信度：{{diagnosisSuggestion.primaryConfidenceText}}
+      </view>
+      <view class="primary-confidence confidence-mid" wx:elif="{{diagnosisSuggestion.primaryConfidence >= 60}}">
+        置信度：{{diagnosisSuggestion.primaryConfidenceText}}
+      </view>
+      <view class="primary-confidence confidence-low" wx:else>
+        置信度：{{diagnosisSuggestion.primaryConfidenceText}}
+      </view>
+    </view>
+
+    <view class="secondary-diseases" wx:if="{{diagnosisSuggestion.secondaryDisease1 || diagnosisSuggestion.secondaryDisease2 || diagnosisSuggestion.secondaryDisease3}}">
+      <view class="secondary-label">其他可能方向</view>
+      <view class="secondary-list">
+        <view class="secondary-item" wx:if="{{diagnosisSuggestion.secondaryDisease1}}">
+          <text class="disease-name">{{diagnosisSuggestion.secondaryDisease1}}</text>
+          <text class="disease-conf">{{Math.round(diagnosisSuggestion.secondaryConfidence1)}}%</text>
+        </view>
+        <view class="secondary-item" wx:if="{{diagnosisSuggestion.secondaryDisease2}}">
+          <text class="disease-name">{{diagnosisSuggestion.secondaryDisease2}}</text>
+          <text class="disease-conf">{{Math.round(diagnosisSuggestion.secondaryConfidence2)}}%</text>
+        </view>
+        <view class="secondary-item" wx:if="{{diagnosisSuggestion.secondaryDisease3}}">
+          <text class="disease-name">{{diagnosisSuggestion.secondaryDisease3}}</text>
+          <text class="disease-conf">{{Math.round(diagnosisSuggestion.secondaryConfidence3)}}%</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="symptoms-section" wx:if="{{diagnosisSuggestion.relatedSymptomsList.length > 0}}">
+      <view class="section-label">相关症状</view>
+      <view class="symptom-tags">
+        <view class="symptom-tag" wx:for="{{diagnosisSuggestion.relatedSymptomsList}}" wx:for-item="symptom" wx:key="*this">{{symptom}}</view>
+      </view>
+    </view>
+
+    <view class="tests-section" wx:if="{{diagnosisSuggestion.recommendedTestsList.length > 0}}">
+      <view class="section-label">建议检查</view>
+      <view class="test-tags">
+        <view class="test-tag" wx:for="{{diagnosisSuggestion.recommendedTestsList}}" wx:for-item="test" wx:key="*this">{{test}}</view>
+      </view>
+    </view>
+  </view>
 </view>

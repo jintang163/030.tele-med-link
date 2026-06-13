@@ -10,7 +10,8 @@ Page({
     pdfDownloading: false,
     pdfUrl: '',
     needFaceVerify: false,
-    patientId: null
+    patientId: null,
+    diagnosisSuggestion: null
   },
 
   onLoad: function (options) {
@@ -58,6 +59,7 @@ Page({
     this.loadConsultationDetail(consultationId);
     this.loadConclusion(consultationId);
     this.loadSignatureStatus(consultationId);
+    this.loadDiagnosisSuggestion(consultationId);
   },
 
   loadConsultationDetail: function (consultationId) {
@@ -108,6 +110,36 @@ Page({
         if (allSigned) {
           that.loadPdfUrl();
         }
+      }
+    });
+  },
+
+  loadDiagnosisSuggestion: function (consultationId) {
+    var that = this;
+    request.request({
+      url: '/diagnosis-assist/suggestion/consultation/' + consultationId,
+      method: 'GET',
+      success: function (data) {
+        if (data && data.primaryDisease) {
+          var suggestion = data;
+          if (suggestion.relatedSymptoms && typeof suggestion.relatedSymptoms === 'string') {
+            suggestion.relatedSymptomsList = suggestion.relatedSymptoms.split(/[,，、;；\s]+/).filter(function (s) { return s; });
+          } else {
+            suggestion.relatedSymptomsList = [];
+          }
+          if (suggestion.recommendedTests && typeof suggestion.recommendedTests === 'string') {
+            suggestion.recommendedTestsList = suggestion.recommendedTests.split(/[,，、;；\s]+/).filter(function (s) { return s; });
+          } else {
+            suggestion.recommendedTestsList = [];
+          }
+          suggestion.primaryConfidenceText = suggestion.primaryConfidence
+            ? Math.round(suggestion.primaryConfidence) + '%'
+            : '-';
+          that.setData({ diagnosisSuggestion: suggestion });
+        }
+      },
+      fail: function () {
+        // ignore - diagnosis suggestion is optional
       }
     });
   },

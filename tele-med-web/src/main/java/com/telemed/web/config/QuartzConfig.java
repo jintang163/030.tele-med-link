@@ -1,6 +1,7 @@
 package com.telemed.web.config;
 
 import com.telemed.web.job.AppointmentReminderJob;
+import com.telemed.web.job.AsrQualityProcessJob;
 import com.telemed.web.job.CrossCampusConsultationCleanJob;
 import com.telemed.web.job.MediasoupNodeHealthJob;
 import com.telemed.web.job.VideoRecordingCleanupJob;
@@ -91,6 +92,23 @@ public class QuartzConfig {
                 .forJob(videoRecordingCleanupJobDetail())
                 .withIdentity("videoRecordingCleanupTrigger")
                 .withSchedule(CronScheduleBuilder.cronSchedule("0 0 3 * * ?"))
+                .build();
+    }
+
+    @Bean
+    public JobDetail asrQualityProcessJobDetail() {
+        return JobBuilder.newJob(AsrQualityProcessJob.class)
+                .withIdentity("asrQualityProcessJob")
+                .storeDurably()
+                .build();
+    }
+
+    @Bean
+    public Trigger asrQualityProcessTrigger() {
+        return TriggerBuilder.newTrigger()
+                .forJob(asrQualityProcessJobDetail())
+                .withIdentity("asrQualityProcessTrigger")
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 */5 * * * ?"))
                 .build();
     }
 }

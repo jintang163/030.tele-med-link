@@ -174,6 +174,82 @@ export interface VideoRecordingKeyVO {
   encryptionIv: string
 }
 
+export interface AsrQualityIssue {
+  id: number
+  reportId: number
+  issueType: string
+  severity: string
+  description: string
+  relatedText: string
+  suggestion: string
+  timelineStart: number
+  timelineEnd: number
+  resolved: boolean
+  createTime: string
+}
+
+export interface TranscriptUtterance {
+  id?: number
+  speakerRole: string
+  speakerName?: string
+  text: string
+  duration?: number
+  createTime?: string
+}
+
+export interface AsrQualityReport {
+  id: number
+  consultationId: number
+  consultationNo?: string
+  doctorId: number
+  doctorName?: string
+  patientId: number
+  patientName?: string
+  status: string
+  fullTranscript?: string
+  totalDuration?: number
+  doctorTalkTime?: number
+  patientTalkTime?: number
+  keyIndicatorScore: number
+  safetyScore: number
+  overallScore: number
+  summary?: string
+  recommendations?: string
+  safetyRisksDetected?: boolean
+  asrProvider?: string
+  mentionedKeyIndicators?: string[]
+  missingKeyIndicators?: string[]
+  issues?: AsrQualityIssue[]
+  utterances?: TranscriptUtterance[]
+  createTime: string
+  updateTime?: string
+}
+
+export interface DiagnosisSuggestion {
+  id: number
+  consultationId?: number
+  patientId: number
+  doctorId: number
+  department?: string
+  patientComplaint?: string
+  imagingFindings?: string
+  primaryDisease?: string
+  primaryConfidence?: number
+  primaryEvidence?: string
+  secondaryDisease1?: string
+  secondaryConfidence1?: number
+  secondaryDisease2?: string
+  secondaryConfidence2?: number
+  secondaryDisease3?: string
+  secondaryConfidence3?: number
+  relatedSymptoms?: string[]
+  recommendedTests?: string[]
+  differentialDiagnosis?: string
+  status?: string
+  disclaimer?: string
+  createTime?: string
+}
+
 export interface PatientRecordingItem {
   recordingId: number
   consultationId: number

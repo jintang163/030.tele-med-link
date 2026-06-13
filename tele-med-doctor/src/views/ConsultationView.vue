@@ -237,6 +237,139 @@
           </div>
         </el-tab-pane>
 
+        <el-tab-pane name="diagnosis">
+          <template #label>
+            <el-icon><DataAnalysis /></el-icon>
+            <span>AI辅助诊断</span>
+          </template>
+          <div class="diagnosis-panel">
+            <div class="diagnosis-header">
+              <div class="diagnosis-title">AI 辅助诊断建议</div>
+              <div class="diagnosis-disclaimer-mini">结果仅供参考，不替代最终诊断</div>
+            </div>
+
+            <div class="complaint-section">
+              <div class="section-label">患者主诉</div>
+              <el-input
+                v-model="patientComplaintInput"
+                type="textarea"
+                :rows="3"
+                placeholder="请填写患者主诉，如：头痛三天伴恶心呕吐..."
+              />
+              <el-button
+                type="primary"
+                style="margin-top: 8px; width: 100%"
+                @click="handleGenerateDiagnosis"
+                :loading="diagnosisGenerating"
+              >
+                {{ patientComplaintSubmitted ? '重新生成诊断建议' : '生成辅助诊断建议' }}
+              </el-button>
+              <div class="imaging-hint" v-if="dicomImages.length > 0">
+                已检测到 {{ dicomImages.length }} 张影像，将结合影像特征进行综合分析
+              </div>
+            </div>
+
+            <div v-if="diagnosisGenerating" class="diagnosis-loading">
+              <el-skeleton :rows="5" animated />
+            </div>
+
+            <div v-else-if="diagnosisSuggestion" class="diagnosis-results">
+              <el-alert
+                type="warning"
+                :closable="false"
+                show-icon
+                class="disclaimer-alert"
+              >
+                <template #title>
+                  <span>{{ diagnosisSuggestion.disclaimer }}</span>
+                </template>
+              </el-alert>
+
+              <div class="disease-card primary-disease" v-if="diagnosisSuggestion.primaryDisease">
+                <div class="disease-rank">
+                  <el-tag type="primary" effect="dark">1</el-tag>
+                </div>
+                <div class="disease-info">
+                  <div class="disease-header">
+                    <span class="disease-name">{{ diagnosisSuggestion.primaryDisease }}</span>
+                    <el-progress
+                      :percentage="Math.round(diagnosisSuggestion.primaryConfidence || 0)"
+                      :color="confidenceColor(diagnosisSuggestion.primaryConfidence)"
+                      :stroke-width="10"
+                      class="confidence-bar"
+                    />
+                  </div>
+                  <div v-if="diagnosisSuggestion.primaryEvidence" class="disease-evidence">
+                    <strong>推断依据：</strong>{{ diagnosisSuggestion.primaryEvidence }}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-for="(item, idx) in [
+                  { name: diagnosisSuggestion.secondaryDisease1, conf: diagnosisSuggestion.secondaryConfidence1 },
+                  { name: diagnosisSuggestion.secondaryDisease2, conf: diagnosisSuggestion.secondaryConfidence2 },
+                  { name: diagnosisSuggestion.secondaryDisease3, conf: diagnosisSuggestion.secondaryConfidence3 }
+                ].filter(i => i.name)"
+                :key="item.name"
+                class="disease-card secondary-disease"
+              >
+                <div class="disease-rank">
+                  <el-tag type="info" effect="plain">{{ idx + 2 }}</el-tag>
+                </div>
+                <div class="disease-info">
+                  <div class="disease-header">
+                    <span class="disease-name">{{ item.name }}</span>
+                    <el-progress
+                      :percentage="Math.round(item.conf || 0)"
+                      :color="confidenceColor(item.conf)"
+                      :stroke-width="8"
+                      class="confidence-bar"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="diagnosisSuggestion.relatedSymptoms && diagnosisSuggestion.relatedSymptoms.length > 0" class="result-section">
+                <div class="section-label">相关症状</div>
+                <div class="tag-group">
+                  <el-tag
+                    v-for="s in diagnosisSuggestion.relatedSymptoms.slice(0, 10)"
+                    :key="s"
+                    type="warning"
+                    effect="light"
+                    style="margin: 4px 4px 4px 0;"
+                  >{{ s }}</el-tag>
+                </div>
+              </div>
+
+              <div v-if="diagnosisSuggestion.recommendedTests && diagnosisSuggestion.recommendedTests.length > 0" class="result-section">
+                <div class="section-label">建议检查项目</div>
+                <div class="tag-group">
+                  <el-tag
+                    v-for="t in diagnosisSuggestion.recommendedTests"
+                    :key="t"
+                    type="success"
+                    effect="light"
+                    style="margin: 4px 4px 4px 0;"
+                  >{{ t }}</el-tag>
+                </div>
+              </div>
+
+              <div v-if="diagnosisSuggestion.differentialDiagnosis" class="result-section">
+                <div class="section-label">鉴别诊断</div>
+                <div class="diff-diagnosis-text">
+                  {{ diagnosisSuggestion.differentialDiagnosis }}
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="diagnosis-empty">
+              <el-empty description="填写患者主诉后点击生成" :image-size="80" />
+            </div>
+          </div>
+        </el-tab-pane>
+
         <el-tab-pane name="conclusion" v-if="showConclusion || consultationEnded">
           <template #label>
             <el-icon><Document /></el-icon>
@@ -258,6 +391,28 @@
             >
               提交结论
             </el-button>
+
+            <div v-if="diagnosisSuggestion" class="diagnosis-conclusion-section">
+              <el-divider>AI辅助诊断（仅供参考）</el-divider>
+              <div class="diagnosis-suggestion-box">
+                <div class="suggestion-primary">
+                  <span class="suggestion-label">主要倾向：</span>
+                  <el-tag type="primary" effect="light">
+                    {{ diagnosisSuggestion.primaryDisease }}
+                    <span :style="{ color: confidenceColor(diagnosisSuggestion.primaryConfidence), marginLeft: '8px' }">
+                      {{ formatConfidence(diagnosisSuggestion.primaryConfidence) }}
+                    </span>
+                  </el-tag>
+                </div>
+                <div v-if="diagnosisSuggestion.primaryEvidence" class="suggestion-evidence">
+                  <span class="suggestion-label">推断依据：</span>
+                  <span>{{ diagnosisSuggestion.primaryEvidence }}</span>
+                </div>
+                <div class="suggestion-disclaimer">
+                  ⚠️ {{ diagnosisSuggestion.disclaimer }}
+                </div>
+              </div>
+            </div>
 
             <div v-if="signatureWorkflowActive" class="signature-section">
               <el-divider>电子签名</el-divider>
@@ -338,13 +493,19 @@ import {
 } from '@/api/dicom'
 import { getWhiteboardHistory } from '@/api/whiteboard'
 import { startRecording as startRecordingApi, authorizeRecording } from '@/api/video'
+import {
+  generateDiagnosisSuggestion,
+  getDiagnosisSuggestionByConsultation,
+  type GenerateSuggestionPayload
+} from '@/api/asr-quality'
 import { SignalingWebSocket } from '@/utils/websocket'
 import { JanusVideoRoom } from '@/utils/janus'
 import { VideoRecorder } from '@/utils/videoRecorder'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Microphone, Mute, VideoCamera, VideoPause, Picture, Upload, List,
-  ChatDotRound, Delete, Key, CopyDocument, Document, Brush, VideoCameraFilled
+  ChatDotRound, Delete, Key, CopyDocument, Document, Brush, VideoCameraFilled,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 import type {
   ChatMessage, SignalingMessage, DicomImage,
@@ -416,6 +577,12 @@ const recordingWatermarkText = ref('录制中')
 const pendingRecordingId = ref<number | null>(null)
 
 let videoRecorder: VideoRecorder | null = null
+
+const activeSideTab = ref<string>('chat')
+const diagnosisGenerating = ref(false)
+const diagnosisSuggestion = ref<import('@/types').DiagnosisSuggestion | null>(null)
+const patientComplaintInput = ref('')
+const patientComplaintSubmitted = ref(false)
 
 let videoRoom: JanusVideoRoom | null = null
 let signaling: SignalingWebSocket | null = null
@@ -608,6 +775,70 @@ const beginActualRecording = async (recordingId: number) => {
     ElMessage.error('开始录制失败')
     isRecording.value = false
   }
+}
+
+const handleGenerateDiagnosis = async () => {
+  if (!patientComplaintInput.value.trim()) {
+    ElMessage.warning('请先填写患者主诉')
+    activeSideTab.value = 'diagnosis'
+    return
+  }
+
+  diagnosisGenerating.value = true
+  try {
+    const payload: GenerateSuggestionPayload = {
+      consultationId,
+      patientId: Number(userStore.userInfo?.patientId || userStore.userInfo?.id || 1),
+      doctorId: userIdNum,
+      department: userStore.userInfo?.department || '内科',
+      patientComplaint: patientComplaintInput.value,
+      imagingFindings: generateImagingSummary(),
+      generateSuggestions: true
+    }
+
+    const res = await generateDiagnosisSuggestion(payload)
+    diagnosisSuggestion.value = res.data
+    patientComplaintSubmitted.value = true
+    ElMessage.success('辅助诊断建议已生成（仅供参考）')
+  } catch (e) {
+    ElMessage.error('生成辅助诊断建议失败')
+  } finally {
+    diagnosisGenerating.value = false
+  }
+}
+
+const handleLoadDiagnosis = async () => {
+  diagnosisGenerating.value = true
+  try {
+    const res = await getDiagnosisSuggestionByConsultation(consultationId)
+    diagnosisSuggestion.value = res.data
+    if (res.data.patientComplaint) {
+      patientComplaintInput.value = res.data.patientComplaint
+      patientComplaintSubmitted.value = true
+    }
+  } catch {
+    // ignore - no existing suggestion
+  } finally {
+    diagnosisGenerating.value = false
+  }
+}
+
+const generateImagingSummary = () => {
+  if (dicomImages.length === 0) return ''
+  const modalities = [...new Set(dicomImages.map(i => i.modality).filter(Boolean))]
+  return `已上传${dicomImages.length}张影像，包含${modalities.join('、') || 'CT/MRI'}检查`
+}
+
+const confidenceColor = (c?: number) => {
+  if (!c) return '#909399'
+  if (c >= 80) return '#67C23A'
+  if (c >= 60) return '#E6A23C'
+  return '#F56C6C'
+}
+
+const formatConfidence = (c?: number) => {
+  if (c === undefined || c === null) return '-'
+  return `${Math.round(c)}%`
 }
 
 const handleEndConsultation = async () => {
@@ -1013,6 +1244,7 @@ onMounted(async () => {
   loadWhiteboardHistory()
   chatTimer = setInterval(fetchChatMessages, 5000)
   dicomRefreshTimer = setInterval(fetchDicomImages, 15000)
+  handleLoadDiagnosis()
 })
 
 onUnmounted(() => {
@@ -1510,5 +1742,172 @@ onUnmounted(() => {
   display: flex;
   gap: 12px;
   margin-top: 12px;
+}
+
+.diagnosis-panel {
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.diagnosis-header {
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  color: #fff;
+  margin-bottom: 16px;
+}
+
+.diagnosis-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.diagnosis-disclaimer-mini {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+.complaint-section {
+  padding: 12px;
+  background: #f8f9fb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.imaging-hint {
+  font-size: 12px;
+  color: #67c23a;
+  margin-top: 8px;
+}
+
+.diagnosis-loading {
+  padding: 16px;
+}
+
+.diagnosis-empty {
+  padding: 60px 0;
+}
+
+.diagnosis-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.disclaimer-alert {
+  margin-bottom: 12px;
+}
+
+.disease-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+}
+
+.primary-disease {
+  background: linear-gradient(135deg, #ecf5ff 0%, #f0f9eb 100%);
+  border-color: #409eff;
+  border-width: 2px;
+}
+
+.secondary-disease {
+  background: #fafbfc;
+}
+
+.disease-rank {
+  flex-shrink: 0;
+}
+
+.disease-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.disease-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.disease-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: #303133;
+}
+
+.confidence-bar {
+  flex: 1;
+  min-width: 0;
+  margin-left: auto;
+  max-width: 140px;
+}
+
+.disease-evidence {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.result-section {
+  padding: 10px 12px;
+  background: #f8f9fb;
+  border-radius: 6px;
+}
+
+.tag-group {
+  margin-top: 4px;
+}
+
+.diff-diagnosis-text {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.diagnosis-conclusion-section {
+  margin-top: 12px;
+}
+
+.diagnosis-suggestion-box {
+  padding: 12px;
+  background: #fdf6ec;
+  border-radius: 6px;
+  border: 1px dashed #e6a23c;
+}
+
+.suggestion-primary {
+  margin-bottom: 8px;
+}
+
+.suggestion-label {
+  font-weight: 600;
+  color: #303133;
+}
+
+.suggestion-evidence {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.suggestion-disclaimer {
+  font-size: 12px;
+  color: #e6a23c;
+  margin-top: 6px;
 }
 </style>

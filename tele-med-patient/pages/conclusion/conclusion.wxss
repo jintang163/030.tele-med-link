@@ -168,3 +168,158 @@
   font-size: 24rpx;
   color: #999;
 }
+
+.diagnosis-card {
+  padding: 28rpx 24rpx;
+  background: linear-gradient(180deg, #f6faff 0%, #ffffff 100%);
+}
+
+.diagnosis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.diagnosis-header .diagnosis-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #2f54eb;
+}
+
+.diagnosis-disclaimer-tag {
+  font-size: 22rpx;
+  color: #d46b08;
+  background: #fff7e6;
+  padding: 4rpx 14rpx;
+  border-radius: 16rpx;
+}
+
+.diagnosis-disclaimer-warning {
+  font-size: 24rpx;
+  color: #8c4d12;
+  background: #fffbe6;
+  border: 1rpx solid #ffe58f;
+  padding: 14rpx 16rpx;
+  border-radius: 8rpx;
+  margin-bottom: 20rpx;
+  line-height: 1.5;
+}
+
+.diagnosis-primary {
+  background: #ffffff;
+  border: 2rpx solid #91caff;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.primary-label {
+  font-size: 24rpx;
+  color: #595959;
+  margin-bottom: 8rpx;
+}
+
+.primary-disease-name {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #1d39c4;
+  margin-bottom: 10rpx;
+}
+
+.primary-confidence {
+  display: inline-block;
+  font-size: 26rpx;
+  font-weight: 600;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.confidence-high {
+  color: #389e0d;
+  background: #f6ffed;
+  border: 1rpx solid #b7eb8f;
+}
+
+.confidence-mid {
+  color: #d46b08;
+  background: #fff7e6;
+  border: 1rpx solid #ffd591;
+}
+
+.confidence-low {
+  color: #cf1322;
+  background: #fff1f0;
+  border: 1rpx solid #ffa39e;
+}
+
+.secondary-diseases {
+  margin-bottom: 20rpx;
+}
+
+.secondary-label,
+.section-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 12rpx;
+}
+
+.secondary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.secondary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  border: 1rpx solid #e8e8e8;
+  border-radius: 8rpx;
+  padding: 14rpx 16rpx;
+}
+
+.secondary-item .disease-name {
+  font-size: 28rpx;
+  color: #262626;
+}
+
+.secondary-item .disease-conf {
+  font-size: 26rpx;
+  color: #595959;
+  font-weight: 600;
+}
+
+.symptoms-section,
+.tests-section {
+  margin-bottom: 16rpx;
+}
+
+.symptom-tags,
+.test-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.symptom-tag,
+.test-tag {
+  font-size: 24rpx;
+  padding: 8rpx 18rpx;
+  border-radius: 20rpx;
+  line-height: 1.4;
+}
+
+.symptom-tag {
+  color: #c41d7f;
+  background: #fff0f6;
+  border: 1rpx solid #ffadd2;
+}
+
+.test-tag {
+  color: #08979c;
+  background: #e6fffb;
+  border: 1rpx solid #87e8de;
+}
