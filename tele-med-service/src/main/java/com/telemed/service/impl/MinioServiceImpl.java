@@ -112,6 +112,21 @@ public class MinioServiceImpl implements MinioService {
     }
 
     @Override
+    public String getPresignedUrl(String bucketName, String objectName, int expireMinutes) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .expiry(expireMinutes, TimeUnit.MINUTES)
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public void deleteFile(String bucketName, String objectName) {
         try {
             minioClient.removeObject(

@@ -3,7 +3,6 @@ package com.telemed.service.impl;
 import com.telemed.common.constant.VideoConstants;
 import com.telemed.common.constant.VideoRecordingStatus;
 import com.telemed.common.exception.BusinessException;
-import com.telemed.common.util.AesEncryptUtil;
 import com.telemed.model.entity.VideoRecording;
 import com.telemed.model.entity.VideoSegment;
 import com.telemed.model.repository.VideoRecordingRepository;
@@ -16,13 +15,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,7 +37,9 @@ public class VideoTranscodeServiceImpl implements VideoTranscodeService {
     private final VideoRecordingRepository videoRecordingRepository;
     private final VideoSegmentRepository videoSegmentRepository;
     private final MinioService minioService;
-    private final AesEncryptUtil aesEncryptUtil;
+
+    private static final String AES_ALGORITHM = "AES";
+    private static final String AES_TRANSFORMATION = "AES/CBC/PKCS5Padding";
 
     @Value("${video.temp-dir:/tmp/telemed-video}")
     private String tempDir;
@@ -83,7 +84,8 @@ public class VideoTranscodeServiceImpl implements VideoTranscodeService {
             List<Path> decryptedFiles = downloadAndDecryptSegments(segments, recording, workDir);
             Path mergedFile = mergeWebmFiles(decryptedFiles, workDir, recordingId);
             Path hlsDir = transcodeToHls(mergedFile, workDir, recordingId);
-            uploadHlsToMinio(hlsDir, recording);
+            Path mp4File = transcodeToMp4(mergedFile, workDir, recordingId);
+            uploadOutputFiles(hlsDir, mp4File, recording);
 
             recording.setStatus(VideoRecordingStatus.COMPLETED.getCode());
             videoRecordingRepository.save(recording);
@@ -113,6 +115,7 @@ public class VideoTranscodeServiceImpl implements VideoTranscodeService {
     private List<Path> downloadAndDecryptSegments(List<VideoSegment> segments, VideoRecording recording, Path workDir) throws IOException {
         List<Path> decryptedFiles = new ArrayList<>();
         byte[] keyBytes = Base64.getDecoder().decode(recording.getEncryptionKey());
+        SecretKeySpec secretKey = new SecretKeySpec(keyBytes, AES_ALGORITHM);
 
         for (VideoSegment segment : segments) {
             log.info("下载片段: recordingId={}, segmentIndex={}, objectName={}",
@@ -124,14 +127,21 @@ public class VideoTranscodeServiceImpl implements VideoTranscodeService {
                     ? Base64.getDecoder().decode(segment.getEncryptionIv())
                     : new byte[16];
 
-            byte[] decryptedData = aesEncryptUtil.decryptBytes(encryptedData, ivBytes);
+            byte[] decryptedData;
+            try {
+                Cipher cipher = Cipher.getInstance(AES_TRANSFORMATION);
+                cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(ivBytes));
+                decryptedData = cipher.doFinal(encryptedData);
+            } catch (Exception e) {
+                throw new IOException("解密视频片段失败, segmentIndex=" + segment.getSegmentIndex(), e);
+            }
 
             Path segmentFile = workDir.resolve("segments").resolve(
                     String.format("segment_%03d.webm", segment.getSegmentIndex()));
             Files.write(segmentFile, decryptedData);
             decryptedFiles.add(segmentFile);
 
-            log.info("片段已解密: {}, 大小: {} bytes", segmentFile.getFileName(), decryptedData.length);
+            log.info("片段已用录制密钥解密: {}, 大小: {} bytes", segmentFile.getFileName(), decryptedData.length);
         }
 
         return decryptedFiles;
@@ -225,7 +235,46 @@ public class VideoTranscodeServiceImpl implements VideoTranscodeService {
         return hlsDir;
     }
 
-    private void uploadHlsToMinio(Path hlsDir, VideoRecording recording) throws IOException {
+    private Path transcodeToMp4(Path mergedFile, Path workDir, Long recordingId) throws IOException {
+        Path mp4File = workDir.resolve("output.mp4");
+
+        ProcessBuilder pb = new ProcessBuilder(
+                ffmpegPath,
+                "-i", mergedFile.toAbsolutePath().toString(),
+                "-c:v", "libx264",
+                "-c:a", "aac",
+                "-preset", "fast",
+                "-crf", "23",
+                "-movflags", "+faststart",
+                "-y",
+                mp4File.toAbsolutePath().toString()
+        );
+        pb.redirectErrorStream(true);
+
+        log.info("执行FFmpeg MP4转码: recordingId={}", recordingId);
+        Process process = pb.start();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                log.debug("FFmpeg: {}", line);
+            }
+        }
+
+        try {
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new IOException("FFmpeg MP4转码失败，退出码: " + exitCode);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("FFmpeg MP4转码被中断", e);
+        }
+
+        log.info("MP4转码完成: {}, 大小: {} bytes", mp4File, Files.size(mp4File));
+        return mp4File;
+    }
+
+    private void uploadOutputFiles(Path hlsDir, Path mp4File, VideoRecording recording) throws IOException {
         minioService.createBucketIfNotExists(VideoConstants.HLS_BUCKET);
 
         String baseObjectPath = String.format("%d/%d", recording.getConsultationId(), recording.getId());
@@ -253,14 +302,22 @@ public class VideoTranscodeServiceImpl implements VideoTranscodeService {
         }
 
         if (playlistObjectName != null) {
-            String playlistUrl = minioService.getFileUrl(VideoConstants.HLS_BUCKET, playlistObjectName);
-            recording.setHlsPlaylistUrl(playlistUrl);
+            recording.setHlsPlaylistUrl(minioService.getPresignedUrl(VideoConstants.HLS_BUCKET, playlistObjectName, 60));
             recording.setHlsBucket(VideoConstants.HLS_BUCKET);
             recording.setHlsObjectName(playlistObjectName);
-            videoRecordingRepository.save(recording);
-
-            log.info("HLS播放列表URL: {}", playlistUrl);
+            log.info("HLS播放列表presigned URL已生成");
         }
+
+        if (Files.exists(mp4File)) {
+            String mp4ObjectName = baseObjectPath + "/output.mp4";
+            byte[] mp4Bytes = Files.readAllBytes(mp4File);
+            minioService.uploadBytes(VideoConstants.HLS_BUCKET, mp4ObjectName, mp4Bytes, "video/mp4");
+            recording.setMp4Bucket(VideoConstants.HLS_BUCKET);
+            recording.setMp4ObjectName(mp4ObjectName);
+            log.info("MP4文件已上传: {}/{}", VideoConstants.HLS_BUCKET, mp4ObjectName);
+        }
+
+        videoRecordingRepository.save(recording);
     }
 
     private void cleanupWorkDirectory(Path workDir) {

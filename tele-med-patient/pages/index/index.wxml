@@ -47,6 +47,14 @@
         <text class="action-desc">查看跨院区申请记录</text>
       </view>
     </view>
+
+    <view class="action-card card-playback" bindtap="navigateToVideoPlayback">
+      <view class="action-icon">🎬</view>
+      <view class="action-text">
+        <text class="action-title">录制回放</text>
+        <text class="action-desc">查看会诊视频录制</text>
+      </view>
+    </view>
   </view>
 
   <view class="section-header">

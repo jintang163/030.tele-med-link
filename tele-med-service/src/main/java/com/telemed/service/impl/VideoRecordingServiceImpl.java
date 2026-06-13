@@ -77,8 +77,14 @@ public class VideoRecordingServiceImpl implements VideoRecordingService {
         }
 
         VideoRecording existing = videoRecordingRepository.findByConsultationId(dto.getConsultationId()).orElse(null);
-        if (existing != null && existing.getStatus() == VideoRecordingStatus.RECORDING.getCode()) {
-            throw new BusinessException("该会诊正在录制中");
+        if (existing != null) {
+            int existingStatus = existing.getStatus() != null ? existing.getStatus() : -1;
+            if (existingStatus == VideoRecordingStatus.PENDING_AUTHORIZATION.getCode()
+                    || existingStatus == VideoRecordingStatus.RECORDING.getCode()
+                    || existingStatus == VideoRecordingStatus.UPLOADING.getCode()) {
+                log.info("会诊已有活跃录制记录，返回已有记录，recordingId: {}, status: {}", existing.getId(), existingStatus);
+                return convertToVO(existing);
+            }
         }
 
         VideoRecording recording = new VideoRecording();
@@ -150,17 +156,15 @@ public class VideoRecordingServiceImpl implements VideoRecordingService {
 
         String objectName = buildSegmentObjectName(dto.getRecordingId(), dto.getConsultationId(), dto.getSegmentIndex(), dto.getFileName());
 
-        byte[] encryptedBytes;
+        byte[] fileBytes;
         try {
-            byte[] fileBytes = file.getBytes();
-            byte[] ivBytes = Base64.getDecoder().decode(dto.getEncryptionIv());
-            encryptedBytes = aesEncryptUtil.encryptBytes(fileBytes, ivBytes);
+            fileBytes = file.getBytes();
         } catch (Exception e) {
-            log.error("视频片段加密失败", e);
-            throw new BusinessException("视频片段加密失败");
+            log.error("读取视频片段数据失败", e);
+            throw new BusinessException("读取视频片段数据失败");
         }
 
-        String storedName = minioService.uploadBytes(VideoConstants.SEGMENT_BUCKET, objectName, encryptedBytes, "application/octet-stream");
+        String storedName = minioService.uploadBytes(VideoConstants.SEGMENT_BUCKET, objectName, fileBytes, "application/octet-stream");
 
         VideoSegment segment = new VideoSegment();
         segment.setRecordingId(dto.getRecordingId());
@@ -169,7 +173,7 @@ public class VideoRecordingServiceImpl implements VideoRecordingService {
         segment.setFileName(dto.getFileName());
         segment.setBucketName(VideoConstants.SEGMENT_BUCKET);
         segment.setObjectName(storedName);
-        segment.setFileSize(file.getSize());
+        segment.setFileSize(fileBytes.length);
         segment.setDuration(dto.getDuration());
         segment.setEncryptionIv(dto.getEncryptionIv());
         segment.setChecksum(dto.getChecksum());
@@ -177,7 +181,8 @@ public class VideoRecordingServiceImpl implements VideoRecordingService {
         segment.setUploadTime(LocalDateTime.now());
 
         VideoSegment saved = videoSegmentRepository.save(segment);
-        log.info("视频片段上传成功，segmentId: {}, index: {}", saved.getId(), dto.getSegmentIndex());
+        log.info("视频片段上传成功(客户端加密原样存储)，segmentId: {}, index: {}, size: {}",
+                saved.getId(), dto.getSegmentIndex(), fileBytes.length);
 
         return convertSegmentToVO(saved);
     }
@@ -320,9 +325,15 @@ public class VideoRecordingServiceImpl implements VideoRecordingService {
         VideoPlaybackAuthVO vo = new VideoPlaybackAuthVO();
         vo.setRecordingId(recording.getId());
         vo.setAuthToken(token);
-        vo.setHlsPlaylistUrl(recording.getHlsPlaylistUrl());
-        vo.setEncryptionKey(recording.getEncryptionKey());
         vo.setExpireTime(auth.getExpireTime());
+
+        if (recording.getHlsBucket() != null && recording.getHlsObjectName() != null) {
+            vo.setHlsPlaylistUrl(minioService.getPresignedUrl(recording.getHlsBucket(), recording.getHlsObjectName(), expireMinutes));
+        }
+
+        if (recording.getMp4Bucket() != null && recording.getMp4ObjectName() != null) {
+            vo.setMp4Url(minioService.getPresignedUrl(recording.getMp4Bucket(), recording.getMp4ObjectName(), expireMinutes));
+        }
 
         log.info("生成播放授权，recordingId: {}, userId: {}, token: {}", dto.getRecordingId(), dto.getUserId(), token);
         return vo;
@@ -373,9 +384,19 @@ public class VideoRecordingServiceImpl implements VideoRecordingService {
         VideoPlaybackAuthVO vo = new VideoPlaybackAuthVO();
         vo.setRecordingId(recording.getId());
         vo.setAuthToken(token);
-        vo.setHlsPlaylistUrl(recording.getHlsPlaylistUrl());
-        vo.setEncryptionKey(recording.getEncryptionKey());
         vo.setExpireTime(auth.getExpireTime());
+
+        int remainingMinutes = (int) java.time.Duration.between(LocalDateTime.now(), auth.getExpireTime()).toMinutes();
+        if (remainingMinutes < 1) remainingMinutes = 1;
+
+        if (recording.getHlsBucket() != null && recording.getHlsObjectName() != null) {
+            vo.setHlsPlaylistUrl(minioService.getPresignedUrl(recording.getHlsBucket(), recording.getHlsObjectName(), remainingMinutes));
+        }
+
+        if (recording.getMp4Bucket() != null && recording.getMp4ObjectName() != null) {
+            vo.setMp4Url(minioService.getPresignedUrl(recording.getMp4Bucket(), recording.getMp4ObjectName(), remainingMinutes));
+        }
+
         return vo;
     }
 
@@ -445,6 +466,14 @@ public class VideoRecordingServiceImpl implements VideoRecordingService {
                 }
             } catch (Exception e) {
                 log.warn("删除HLS文件失败，recordingId: {}", recording.getId(), e);
+            }
+        }
+
+        if (recording.getMp4Bucket() != null && recording.getMp4ObjectName() != null) {
+            try {
+                minioService.deleteFile(recording.getMp4Bucket(), recording.getMp4ObjectName());
+            } catch (Exception e) {
+                log.warn("删除MP4文件失败，recordingId: {}", recording.getId(), e);
             }
         }
     }

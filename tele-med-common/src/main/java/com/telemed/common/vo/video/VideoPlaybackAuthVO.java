@@ -17,6 +17,8 @@ public class VideoPlaybackAuthVO {
 
     private String hlsPlaylistUrl;
 
+    private String mp4Url;
+
     private String encryptionKey;
 
     private LocalDateTime expireTime;

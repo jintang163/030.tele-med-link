@@ -54,6 +54,12 @@ public class VideoRecording {
     @Column(length = 512)
     private String hlsObjectName;
 
+    @Column(length = 128)
+    private String mp4Bucket;
+
+    @Column(length = 512)
+    private String mp4ObjectName;
+
     private Boolean doctorAuthorized = false;
 
     private Boolean patientAuthorized = false;

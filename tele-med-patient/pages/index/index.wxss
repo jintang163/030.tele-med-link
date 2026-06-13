@@ -68,6 +68,10 @@
   border-left: 8rpx solid #fa8c16;
 }
 
+.card-playback {
+  border-left: 8rpx solid #eb2f96;
+}
+
 .action-icon {
   font-size: 56rpx;
   margin-right: 20rpx;

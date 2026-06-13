@@ -6,7 +6,7 @@ Page({
     recordings: [],
     loading: true,
     currentPlayback: null,
-    hlsUrl: '',
+    mp4Url: '',
     playbackToken: '',
     showPlayer: false
   },
@@ -78,7 +78,7 @@ Page({
       success: function (data) {
         that.setData({
           currentPlayback: recordingId,
-          hlsUrl: data.hlsPlaylistUrl,
+          mp4Url: data.mp4Url || data.hlsPlaylistUrl,
           playbackToken: data.authToken,
           showPlayer: true
         });
@@ -101,7 +101,7 @@ Page({
     this.setData({
       showPlayer: false,
       currentPlayback: null,
-      hlsUrl: '',
+      mp4Url: '',
       playbackToken: ''
     });
   },

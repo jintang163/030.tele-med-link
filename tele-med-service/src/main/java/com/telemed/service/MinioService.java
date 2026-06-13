@@ -14,6 +14,8 @@ public interface MinioService {
 
     String getFileUrl(String bucketName, String objectName);
 
+    String getPresignedUrl(String bucketName, String objectName, int expireMinutes);
+
     void deleteFile(String bucketName, String objectName);
 
     void createBucketIfNotExists(String bucketName);

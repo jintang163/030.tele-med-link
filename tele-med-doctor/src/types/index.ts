@@ -164,7 +164,7 @@ export interface VideoPlaybackAuth {
   recordingId: number
   authToken: string
   hlsPlaylistUrl: string
-  encryptionKey: string
+  mp4Url: string
   expireTime: string
 }
 

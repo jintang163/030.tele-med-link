@@ -274,6 +274,17 @@ Page({
     });
   },
 
+  navigateToVideoPlayback: function () {
+    var patientId = app.globalData.patientId;
+    if (!patientId) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({
+      url: '/pages/video-playback/video-playback'
+    });
+  },
+
   viewConclusion: function (e) {
     var id = e.currentTarget.dataset.id;
     wx.navigateTo({

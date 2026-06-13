@@ -42,11 +42,12 @@
     </view>
     <video
       class="player-video"
-      src="{{hlsUrl}}"
+      src="{{mp4Url}}"
       controls
       autoplay
       show-center-play-btn
       enable-progress-gesture
+      object-fit="contain"
     ></video>
   </view>
 </view>
