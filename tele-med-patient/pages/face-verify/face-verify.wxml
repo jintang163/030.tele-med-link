@@ -1,0 +1,85 @@
+<view class="container">
+  <view class="header">
+    <view class="header-title">人脸身份核验</view>
+    <view class="header-desc">为保障您的隐私安全，请完成人脸核验后查看医疗资料</view>
+  </view>
+
+  <view class="card" wx:if="{{locked}}">
+    <view class="lock-tip">
+      <view class="lock-icon">🔒</view>
+      <view class="lock-text">账户已被临时锁定</view>
+      <view class="lock-time">锁定时间：{{lockTime}}</view>
+      <view class="lock-desc">连续失败次数过多，请联系管理员解锁</view>
+      <button class="contact-btn" bindtap="contactAdmin">联系管理员</button>
+    </view>
+  </view>
+
+  <view class="card" wx:else>
+    <view class="form-item">
+      <view class="form-label">姓名</view>
+      <input
+        class="form-input"
+        placeholder="请输入真实姓名"
+        value="{{patientName}}"
+        bindinput="onNameInput"
+      />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">身份证号</view>
+      <input
+        class="form-input"
+        placeholder="请输入身份证号"
+        value="{{idCardNo}}"
+        bindinput="onIdCardInput"
+      />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">核验方式</view>
+      <picker bindchange="onTypeChange" range="{{typeOptions}}" range-key="label" value="{{verifyType - 1}}">
+        <view class="picker-value">
+          {{verifyType === 1 ? '身份证人脸比对' : (verifyType === 2 ? '活体检测' : '活体+身份证比对')}}
+          <text class="picker-arrow">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">人脸照片</view>
+      <view class="face-upload-area" bindtap="chooseImage">
+        <image wx:if="{{faceImage}}" class="face-img" src="{{faceImage}}" mode="aspectFit" />
+        <view wx:else class="face-placeholder">
+          <view class="placeholder-icon">📷</view>
+          <view class="placeholder-text">点击拍照或上传人脸照片</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="tips">
+      <view class="tips-title">核验说明：</view>
+      <view class="tips-item">• 请确保照片清晰，光线充足</view>
+      <view class="tips-item">• 请使用本人真实照片进行核验</view>
+      <view class="tips-item">• 您的人脸数据仅用于身份核验，不会用于其他用途</view>
+      <view class="tips-item remain">• 剩余核验次数：{{remainingAttempts}} 次</view>
+    </view>
+
+    <view class="fail-reason" wx:if="{{failReason}}">
+      {{failReason}}
+    </view>
+
+    <button
+      class="verify-btn"
+      type="primary"
+      bindtap="onVerifyClick"
+      loading="{{verifying}}"
+      disabled="{{verifying}}"
+    >
+      开始核验
+    </button>
+  </view>
+
+  <view class="privacy-tip">
+    <text>提交即表示您同意《人脸核验服务协议》和《隐私政策》</text>
+  </view>
+</view>

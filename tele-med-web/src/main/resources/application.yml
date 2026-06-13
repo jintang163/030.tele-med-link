@@ -120,3 +120,18 @@ signature:
   default-sign-height: 60
   default-sign-position-x: 400
   default-sign-position-y: 100
+
+face-verify:
+  provider: mock
+  token-expire-minutes: 5
+  similarity-threshold: 0.8
+  max-failure-count: 3
+  bucket: tele-med-face
+  tencent:
+    secret-id: your-secret-id
+    secret-key: your-secret-key
+    region: ap-beijing
+  aliyun:
+    access-key-id: your-access-key-id
+    access-key-secret: your-access-key-secret
+    region: cn-shanghai

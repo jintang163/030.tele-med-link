@@ -1,4 +1,5 @@
 var request = require('../../utils/request');
+var app = getApp();
 
 Page({
   data: {
@@ -6,17 +7,57 @@ Page({
     conclusion: null,
     signatureList: [],
     allSigned: false,
-    pdfDownloading: false
+    pdfDownloading: false,
+    pdfUrl: '',
+    needFaceVerify: false,
+    patientId: null
   },
 
   onLoad: function (options) {
     var consultationId = options.consultationId;
+    var patientId = options.patientId || app.globalData.patientId;
+    var skipVerify = options.skipVerify === '1';
+
     if (consultationId) {
-      this.setData({ consultationId: consultationId });
-      this.loadConsultationDetail(consultationId);
-      this.loadConclusion(consultationId);
-      this.loadSignatureStatus(consultationId);
+      this.setData({
+        consultationId: consultationId,
+        patientId: patientId,
+        skipVerify: skipVerify
+      });
+
+      if (skipVerify) {
+        this.loadAllData(consultationId);
+      } else {
+        this.checkFaceVerifyAndLoad(consultationId);
+      }
     }
+  },
+
+  onShow: function () {
+    var faceToken = wx.getStorageSync('faceToken');
+    if (faceToken && this.data.consultationId && !this.data.skipVerify) {
+      this.loadAllData(this.data.consultationId);
+      this.loadPdfUrl();
+    }
+  },
+
+  checkFaceVerifyAndLoad: function (consultationId) {
+    var that = this;
+    var faceToken = wx.getStorageSync('faceToken');
+    if (!faceToken) {
+      wx.redirectTo({
+        url: '/pages/face-verify/face-verify?from=conclusion&patientId=' + (that.data.patientId || '') +
+             '&consultationId=' + consultationId
+      });
+      return;
+    }
+    this.loadAllData(consultationId);
+  },
+
+  loadAllData: function (consultationId) {
+    this.loadConsultationDetail(consultationId);
+    this.loadConclusion(consultationId);
+    this.loadSignatureStatus(consultationId);
   },
 
   loadConsultationDetail: function (consultationId) {
@@ -64,6 +105,39 @@ Page({
           signatureList: list,
           allSigned: allSigned
         });
+        if (allSigned) {
+          that.loadPdfUrl();
+        }
+      }
+    });
+  },
+
+  loadPdfUrl: function () {
+    var that = this;
+    var consultationId = that.data.consultationId;
+    var patientId = that.data.patientId;
+    var faceToken = wx.getStorageSync('faceToken');
+
+    request.request({
+      url: '/signature/patient-pdf-url/' + consultationId + '?patientId=' + (patientId || '') + (faceToken ? '&faceToken=' + faceToken : ''),
+      method: 'GET',
+      success: function (data) {
+        if (data && data.url) {
+          that.setData({
+            pdfUrl: data.url,
+            needFaceVerify: false
+          });
+        } else {
+          that.setData({
+            needFaceVerify: data && data.needFaceVerify ? true : false
+          });
+        }
+      },
+      fail: function (res) {
+        if (res && res.code === 401) {
+          wx.removeStorageSync('faceToken');
+          that.setData({ needFaceVerify: true });
+        }
       }
     });
   },
@@ -73,10 +147,18 @@ Page({
     var consultationId = that.data.consultationId;
     if (!consultationId) return;
 
+    var faceToken = wx.getStorageSync('faceToken');
+    if (!faceToken) {
+      wx.navigateTo({
+        url: '/pages/face-verify/face-verify?from=conclusion&patientId=' + (that.data.patientId || '')
+      });
+      return;
+    }
+
     that.setData({ pdfDownloading: true });
 
     request.request({
-      url: '/signature/pdf-url/' + consultationId,
+      url: '/signature/patient-pdf-url/' + consultationId + '?patientId=' + (that.data.patientId || '') + '&faceToken=' + faceToken,
       method: 'GET',
       success: function (data) {
         var pdfUrl = data && data.url;
@@ -100,13 +182,25 @@ Page({
               wx.showToast({ title: '下载失败', icon: 'none' });
             }
           });
+        } else if (data && data.needFaceVerify) {
+          wx.removeStorageSync('faceToken');
+          wx.navigateTo({
+            url: '/pages/face-verify/face-verify?from=conclusion&patientId=' + (that.data.patientId || '')
+          });
         } else {
           wx.showToast({ title: 'PDF尚未生成', icon: 'none' });
         }
         that.setData({ pdfDownloading: false });
       },
-      fail: function () {
-        wx.showToast({ title: '获取PDF失败', icon: 'none' });
+      fail: function (res) {
+        if (res && (res.code === 401 || res.errMsg && res.errMsg.indexOf('401') > -1)) {
+          wx.removeStorageSync('faceToken');
+          wx.navigateTo({
+            url: '/pages/face-verify/face-verify?from=conclusion&patientId=' + (that.data.patientId || '')
+          });
+        } else {
+          wx.showToast({ title: '获取PDF失败', icon: 'none' });
+        }
         that.setData({ pdfDownloading: false });
       }
     });

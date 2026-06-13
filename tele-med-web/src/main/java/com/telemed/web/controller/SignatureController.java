@@ -6,6 +6,7 @@ import com.telemed.common.exception.BusinessException;
 import com.telemed.common.result.Result;
 import com.telemed.common.vo.signature.ConsultationSignatureVO;
 import com.telemed.service.ConsultationSignatureService;
+import com.telemed.service.FaceVerifyService;
 import com.telemed.service.Sm2SignatureService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,9 @@ public class SignatureController {
 
     @Autowired
     private Sm2SignatureService sm2SignatureService;
+
+    @Autowired
+    private FaceVerifyService faceVerifyService;
 
     @PostMapping("/generate-key-pair")
     public Result<Map<String, String>> generateKeyPair() {
@@ -86,22 +90,70 @@ public class SignatureController {
     }
 
     @GetMapping("/patient-pdf-url/{consultationId}")
-    public Result<Map<String, Object>> getPatientPdfUrl(@PathVariable Long consultationId) {
+    public Result<Map<String, Object>> getPatientPdfUrl(
+            @PathVariable Long consultationId,
+            @RequestParam(required = false) String faceToken,
+            @RequestParam(required = false) Long patientId) {
         Map<String, Object> result = new HashMap<>();
         try {
             boolean allSigned = consultationSignatureService.isAllSigned(consultationId);
             result.put("allSigned", allSigned);
-            if (allSigned) {
-                String url = consultationSignatureService.getFinalPdfUrl(consultationId);
-                result.put("url", url);
-            }
-            List<ConsultationSignatureVO> signatures = consultationSignatureService.getConsultationSignatures(consultationId);
+            List<ConsultationSignatureVO> signatures = consultationSignatureService
+                    .getConsultationSignatures(consultationId);
             result.put("signatures", signatures);
+
+            if (allSigned) {
+                if (faceToken != null && !faceToken.isEmpty() && patientId != null) {
+                    boolean valid = faceVerifyService.validateFaceToken(
+                            faceToken, patientId, null, "pdf:" + consultationId);
+                    if (valid) {
+                        String url = consultationSignatureService.getFinalPdfUrl(consultationId);
+                        result.put("url", url);
+                        result.put("faceVerified", true);
+                    } else {
+                        result.put("faceVerified", false);
+                        result.put("needFaceVerify", true);
+                    }
+                } else {
+                    result.put("faceVerified", false);
+                    result.put("needFaceVerify", true);
+                }
+            }
         } catch (BusinessException e) {
             result.put("allSigned", false);
             result.put("signatures", List.of());
         }
         return Result.ok(result);
+    }
+
+    @GetMapping("/patient-download-pdf/{consultationId}")
+    public void patientDownloadPdf(
+            @PathVariable Long consultationId,
+            @RequestParam(required = false) String faceToken,
+            @RequestParam(required = false) Long patientId,
+            HttpServletResponse response) {
+        if (faceToken == null || faceToken.isEmpty() || patientId == null) {
+            throw new BusinessException(401, "请先完成人脸核验");
+        }
+        boolean valid = faceVerifyService.validateFaceToken(
+                faceToken, patientId, null, "pdf-download:" + consultationId);
+        if (!valid) {
+            throw new BusinessException(401, "人脸核验令牌无效或已过期");
+        }
+        try {
+            byte[] pdfBytes = consultationSignatureService.getFinalPdf(consultationId);
+            response.setContentType("application/pdf");
+            response.setContentLength(pdfBytes.length);
+            String fileName = "consultation_" + consultationId + ".pdf";
+            response.setHeader("Content-Disposition", "attachment; filename=" +
+                    URLEncoder.encode(fileName, StandardCharsets.UTF_8.name()));
+            try (OutputStream out = response.getOutputStream()) {
+                out.write(pdfBytes);
+                out.flush();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("下载PDF失败: " + e.getMessage(), e);
+        }
     }
 
     @PostMapping("/doctor-sign")

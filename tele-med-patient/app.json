@@ -4,6 +4,7 @@
     "pages/consultation/consultation",
     "pages/appointment/appointment",
     "pages/conclusion/conclusion",
+    "pages/face-verify/face-verify",
     "pages/cross-campus-appointment/cross-campus-appointment",
     "pages/cross-campus-list/cross-campus-list"
   ],
