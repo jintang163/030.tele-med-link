@@ -60,4 +60,50 @@ public class AesEncryptUtil {
             throw new RuntimeException("AES decryption failed", e);
         }
     }
+
+    public byte[] encryptBytes(byte[] plainBytes, byte[] iv) {
+        try {
+            SecretKeySpec secretKey = new SecretKeySpec(aesKey.getBytes(), ALGORITHM);
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec);
+
+            return cipher.doFinal(plainBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("AES bytes encryption failed", e);
+        }
+    }
+
+    public byte[] decryptBytes(byte[] encryptedBytes, byte[] iv) {
+        try {
+            SecretKeySpec secretKey = new SecretKeySpec(aesKey.getBytes(), ALGORITHM);
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec);
+
+            return cipher.doFinal(encryptedBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("AES bytes decryption failed", e);
+        }
+    }
+
+    public String generateRandomKey() {
+        byte[] keyBytes = new byte[32];
+        new SecureRandom().nextBytes(keyBytes);
+        return Base64.getEncoder().encodeToString(keyBytes);
+    }
+
+    public String generateRandomIv() {
+        byte[] ivBytes = new byte[IV_LENGTH];
+        new SecureRandom().nextBytes(ivBytes);
+        return Base64.getEncoder().encodeToString(ivBytes);
+    }
+
+    public byte[] generateRandomIvBytes() {
+        byte[] ivBytes = new byte[IV_LENGTH];
+        new SecureRandom().nextBytes(ivBytes);
+        return ivBytes;
+    }
 }

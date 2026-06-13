@@ -1,0 +1,52 @@
+<view class="playback-page">
+  <view class="page-header">
+    <text class="page-title">会诊录制回放</text>
+  </view>
+
+  <view class="loading-tip" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <view class="empty-tip" wx:if="{{!loading && recordings.length === 0}}">
+    <text>暂无录制记录</text>
+  </view>
+
+  <view class="recording-list" wx:if="{{!loading && recordings.length > 0}}">
+    <view class="recording-item" wx:for="{{recordings}}" wx:key="id">
+      <view class="recording-info">
+        <view class="recording-header">
+          <text class="recording-no">会诊号: {{item.consultationNo || item.consultationId}}</text>
+          <text class="recording-status status-{{item.status}}">{{item.statusText}}</text>
+        </view>
+        <view class="recording-meta">
+          <text wx:if="{{item.doctorName}}">医生: {{item.doctorName}}</text>
+          <text wx:if="{{item.durationText}}">时长: {{item.durationText}}</text>
+        </view>
+        <view class="recording-time" wx:if="{{item.startTimeText}}">
+          <text>开始: {{item.startTimeText}}</text>
+        </view>
+        <view class="recording-expire" wx:if="{{item.expireTime && item.status === 4}}">
+          <text>有效期至: {{item.expireTime}}</text>
+        </view>
+      </view>
+      <view class="recording-action" wx:if="{{item.status === 4}}">
+        <view class="play-btn" bindtap="playRecording" data-id="{{item.id}}">播放</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="player-modal" wx:if="{{showPlayer}}">
+    <view class="player-header">
+      <text class="player-title">视频回放</text>
+      <text class="player-close" bindtap="closePlayer">✕</text>
+    </view>
+    <video
+      class="player-video"
+      src="{{hlsUrl}}"
+      controls
+      autoplay
+      show-center-play-btn
+      enable-progress-gesture
+    ></video>
+  </view>
+</view>

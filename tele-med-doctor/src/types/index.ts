@@ -81,12 +81,113 @@ export interface ChatMessage {
 }
 
 export interface SignalingMessage {
-  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left' | 'mediasoup-producer-added' | 'mediasoup-producer-removed' | 'dicom-annotation' | 'dicom-viewport' | 'dicom-image-added' | 'whiteboard-op' | 'whiteboard-clear'
+  type: 'offer' | 'answer' | 'ice-candidate' | 'chat' | 'join' | 'leave' | 'user-online' | 'user-offline' | 'user-joined' | 'user-left' | 'mediasoup-producer-added' | 'mediasoup-producer-removed' | 'dicom-annotation' | 'dicom-viewport' | 'dicom-image-added' | 'whiteboard-op' | 'whiteboard-clear' | 'video-recording-request' | 'video-recording-auth' | 'video-recording-started' | 'video-recording-stopped' | 'video-recording-status'
   from: string
   to: string
   roomId: string
   payload?: any
   timestamp: number
+}
+
+export type VideoRecordingStatusType = 'PENDING_AUTHORIZATION' | 'RECORDING' | 'UPLOADING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'EXPIRED'
+
+export interface VideoRecording {
+  id: number
+  consultationId: number
+  consultationNo?: string
+  doctorId: number
+  doctorName?: string
+  patientId: number
+  patientName?: string
+  status: number
+  statusText?: string
+  totalSegments?: number
+  uploadedSegments?: number
+  totalDuration?: number
+  hlsPlaylistUrl?: string
+  doctorAuthorized: boolean
+  patientAuthorized: boolean
+  watermarkText?: string
+  startTime?: string
+  endTime?: string
+  expireTime?: string
+  createTime?: string
+}
+
+export interface VideoSegment {
+  id: number
+  recordingId: number
+  consultationId: number
+  segmentIndex: number
+  fileName: string
+  bucketName: string
+  objectName: string
+  fileSize: number
+  duration: number
+  encryptionIv: string
+  uploadStatus: number
+  uploadTime?: string
+}
+
+export interface VideoRecordingRequestPayload {
+  recordingId: number
+  consultationId: number
+  consultationNo?: string
+  doctorId: number
+  doctorName?: string
+  watermarkText?: string
+  segmentDuration?: number
+  timestamp: number
+}
+
+export interface VideoRecordingAuthPayload {
+  recordingId: number
+  consultationId: number
+  userRole: 'DOCTOR' | 'PATIENT'
+  userId: number
+  userName?: string
+  authorized: boolean
+  timestamp: number
+}
+
+export interface VideoRecordingStatusPayload {
+  recordingId: number
+  consultationId: number
+  status: number
+  statusText?: string
+  doctorAuthorized?: boolean
+  patientAuthorized?: boolean
+  startTime?: string
+}
+
+export interface VideoPlaybackAuth {
+  recordingId: number
+  authToken: string
+  hlsPlaylistUrl: string
+  encryptionKey: string
+  expireTime: string
+}
+
+export interface VideoRecordingKeyVO {
+  recordingId: number
+  encryptionKey: string
+  encryptionIv: string
+}
+
+export interface PatientRecordingItem {
+  recordingId: number
+  consultationId: number
+  consultationNo: string
+  doctorName?: string
+  patientName?: string
+  status: number
+  statusText: string
+  totalDuration?: number
+  startTime?: string
+  endTime?: string
+  expireTime?: string
+  hlsPlaylistUrl?: string
+  authToken?: string
 }
 
 export interface DicomImage {

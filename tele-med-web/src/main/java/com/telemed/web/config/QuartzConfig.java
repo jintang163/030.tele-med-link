@@ -3,6 +3,7 @@ package com.telemed.web.config;
 import com.telemed.web.job.AppointmentReminderJob;
 import com.telemed.web.job.CrossCampusConsultationCleanJob;
 import com.telemed.web.job.MediasoupNodeHealthJob;
+import com.telemed.web.job.VideoRecordingCleanupJob;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
@@ -73,6 +74,23 @@ public class QuartzConfig {
                 .forJob(mediasoupHealthJobDetail())
                 .withIdentity("mediasoupHealthTrigger")
                 .withSchedule(CronScheduleBuilder.cronSchedule("0/30 * * * * ?"))
+                .build();
+    }
+
+    @Bean
+    public JobDetail videoRecordingCleanupJobDetail() {
+        return JobBuilder.newJob(VideoRecordingCleanupJob.class)
+                .withIdentity("videoRecordingCleanupJob")
+                .storeDurably()
+                .build();
+    }
+
+    @Bean
+    public Trigger videoRecordingCleanupTrigger() {
+        return TriggerBuilder.newTrigger()
+                .forJob(videoRecordingCleanupJobDetail())
+                .withIdentity("videoRecordingCleanupTrigger")
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 3 * * ?"))
                 .build();
     }
 }

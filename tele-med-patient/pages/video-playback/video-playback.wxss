@@ -1,0 +1,143 @@
+.playback-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.page-header {
+  padding: 32rpx 24rpx;
+  background: #1890ff;
+}
+
+.page-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
+.loading-tip,
+.empty-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.recording-list {
+  padding: 16rpx 24rpx;
+}
+
+.recording-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.recording-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recording-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.recording-no {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.recording-status {
+  font-size: 22rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  color: #fff;
+}
+
+.status-0 { background: #faad14; }
+.status-1 { background: #ff4d4f; }
+.status-2 { background: #1890ff; }
+.status-3 { background: #722ed1; }
+.status-4 { background: #52c41a; }
+.status-5 { background: #ff4d4f; }
+.status-6 { background: #999; }
+.status-7 { background: #999; }
+
+.recording-meta {
+  display: flex;
+  gap: 24rpx;
+  font-size: 24rpx;
+  color: #666;
+  margin-bottom: 4rpx;
+}
+
+.recording-time {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.recording-expire {
+  font-size: 22rpx;
+  color: #faad14;
+  margin-top: 4rpx;
+}
+
+.recording-action {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.play-btn {
+  padding: 12rpx 32rpx;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+}
+
+.player-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #000;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+}
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.player-title {
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.player-close {
+  color: #fff;
+  font-size: 36rpx;
+  padding: 8rpx 16rpx;
+}
+
+.player-video {
+  flex: 1;
+  width: 100%;
+}

@@ -13,9 +13,13 @@ import com.telemed.common.vo.mediasoup.QualityAdviceVO;
 import com.telemed.common.vo.mediasoup.RouterRtpCapabilitiesVO;
 import com.telemed.common.vo.mediasoup.TransportConnectVO;
 import com.telemed.common.vo.mediasoup.TurnServerVO;
+import com.telemed.common.dto.video.VideoRecordingAuthDTO;
+import com.telemed.common.dto.video.VideoRecordingStartDTO;
+import com.telemed.common.vo.video.VideoRecordingVO;
 import com.telemed.model.entity.ChatMessage;
 import com.telemed.model.repository.ChatMessageRepository;
 import com.telemed.service.SignalingService;
+import com.telemed.service.VideoRecordingService;
 import com.telemed.service.WhiteboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +43,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
     private final WebSocketSessionManager sessionManager;
     private final ChatMessageRepository chatMessageRepository;
     private final WhiteboardService whiteboardService;
+    private final VideoRecordingService videoRecordingService;
     private final ObjectMapper objectMapper;
 
     private final ConcurrentHashMap<String, WebSocketSession> connectedSessions = new ConcurrentHashMap<>();
@@ -155,6 +160,14 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
             case "whiteboard-clear":
                 handleWhiteboardClear(signalingMessage, userId);
+                break;
+
+            case "video-recording-request":
+                handleVideoRecordingRequest(signalingMessage, userId);
+                break;
+
+            case "video-recording-auth":
+                handleVideoRecordingAuth(signalingMessage, userId);
                 break;
 
             default:
@@ -467,6 +480,84 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             broadcastToRoom(roomId, message);
         } catch (Exception e) {
             log.error("清除白板失败", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleVideoRecordingRequest(SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = message.getPayload() != null
+                    ? (Map<String, Object>) message.getPayload()
+                    : null;
+            Long consultationId = payload != null && payload.get("consultationId") != null
+                    ? Long.valueOf(payload.get("consultationId").toString())
+                    : null;
+            Long doctorId = payload != null && payload.get("doctorId") != null
+                    ? Long.valueOf(payload.get("doctorId").toString())
+                    : null;
+
+            log.info("视频录制请求: consultationId={}, doctorId={}", consultationId, doctorId);
+
+            VideoRecordingStartDTO dto = new VideoRecordingStartDTO();
+            dto.setConsultationId(consultationId);
+            dto.setDoctorId(doctorId);
+            if (payload != null && payload.get("watermarkText") != null) {
+                dto.setWatermarkText(payload.get("watermarkText").toString());
+            }
+            if (payload != null && payload.get("segmentDuration") != null) {
+                dto.setSegmentDuration(Integer.valueOf(payload.get("segmentDuration").toString()));
+            }
+
+            VideoRecordingVO vo = videoRecordingService.startRecording(dto);
+
+            SignalingMessage notifyMsg = new SignalingMessage();
+            notifyMsg.setType("video-recording-request");
+            notifyMsg.setFrom(userId);
+            notifyMsg.setRoomId(message.getRoomId());
+            notifyMsg.setPayload(vo);
+            notifyMsg.setTimestamp(System.currentTimeMillis());
+            broadcastToRoom(message.getRoomId(), notifyMsg);
+        } catch (Exception e) {
+            log.error("处理视频录制请求失败", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleVideoRecordingAuth(SignalingMessage message, String userId) {
+        try {
+            Map<String, Object> payload = message.getPayload() != null
+                    ? (Map<String, Object>) message.getPayload()
+                    : null;
+            Long consultationId = payload != null && payload.get("consultationId") != null
+                    ? Long.valueOf(payload.get("consultationId").toString())
+                    : null;
+            Boolean authorized = payload != null && payload.get("authorized") != null
+                    ? Boolean.valueOf(payload.get("authorized").toString())
+                    : false;
+            String userRole = payload != null && payload.get("userRole") != null
+                    ? payload.get("userRole").toString()
+                    : "PATIENT";
+
+            log.info("视频录制授权: consultationId={}, userId={}, userRole={}, authorized={}",
+                    consultationId, userId, userRole, authorized);
+
+            VideoRecordingAuthDTO dto = new VideoRecordingAuthDTO();
+            dto.setConsultationId(consultationId);
+            dto.setUserId(Long.parseLong(userId));
+            dto.setUserRole(userRole);
+            dto.setAuthorized(authorized);
+
+            VideoRecordingVO vo = videoRecordingService.authorizeRecording(dto);
+
+            SignalingMessage notifyMsg = new SignalingMessage();
+            notifyMsg.setType("video-recording-status");
+            notifyMsg.setFrom(userId);
+            notifyMsg.setRoomId(message.getRoomId());
+            notifyMsg.setPayload(vo);
+            notifyMsg.setTimestamp(System.currentTimeMillis());
+            broadcastToRoom(message.getRoomId(), notifyMsg);
+        } catch (Exception e) {
+            log.error("处理视频录制授权失败", e);
         }
     }
 }

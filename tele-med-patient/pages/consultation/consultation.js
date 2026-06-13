@@ -18,7 +18,10 @@ Page({
     statusText: '等待中',
     showChat: true,
     scrollToId: '',
-    currentResolution: '1280x720'
+    currentResolution: '1280x720',
+    showRecordingAuth: false,
+    recordingConsultationId: null,
+    recordingId: null
   },
 
   signalingClient: null,
@@ -143,6 +146,32 @@ Page({
       });
     } else if (data.type === 'status') {
       that.updateStatusText(data.status);
+    } else if (data.type === 'video-recording-request') {
+      var payload = data.payload || data;
+      that.setData({
+        showRecordingAuth: true,
+        recordingConsultationId: payload.consultationId,
+        recordingId: payload.recordingId
+      });
+    } else if (data.type === 'video-recording-status') {
+      var payload = data.payload || data;
+      if (payload.status === 6) {
+        that.setData({
+          showRecordingAuth: false,
+          recordingConsultationId: null,
+          recordingId: null
+        });
+        wx.showToast({ title: '录制授权已被拒绝', icon: 'none' });
+      }
+    } else if (data.type === 'video-recording-auth') {
+      var payload = data.payload || data;
+      if (!payload.authorized) {
+        that.setData({
+          showRecordingAuth: false,
+          recordingConsultationId: null,
+          recordingId: null
+        });
+      }
     }
   },
 
@@ -208,6 +237,49 @@ Page({
 
   toggleChat: function () {
     this.setData({ showChat: !this.data.showChat });
+  },
+
+  respondRecordingAuth: function (e) {
+    var that = this;
+    var authorized = e.currentTarget.dataset.authorized;
+    var consultationId = that.data.recordingConsultationId;
+    var recordingId = that.data.recordingId;
+    var patientId = app.globalData.patientId;
+
+    that.setData({
+      showRecordingAuth: false,
+      recordingConsultationId: null,
+      recordingId: null
+    });
+
+    if (that.signalingClient) {
+      that.signalingClient.send({
+        type: 'video-recording-auth',
+        consultationId: consultationId,
+        recordingId: recordingId,
+        userRole: 'PATIENT',
+        userId: patientId,
+        authorized: authorized
+      });
+    }
+
+    request.request({
+      url: '/video/recording/authorize',
+      method: 'POST',
+      data: {
+        consultationId: consultationId,
+        userId: patientId,
+        userRole: 'PATIENT',
+        authorized: authorized
+      },
+      success: function () {
+        if (authorized) {
+          wx.showToast({ title: '已同意录制', icon: 'success' });
+        } else {
+          wx.showToast({ title: '已拒绝录制', icon: 'none' });
+        }
+      }
+    });
   },
 
   endConsultation: function () {

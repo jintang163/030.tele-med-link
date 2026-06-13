@@ -104,4 +104,15 @@
       </view>
     </view>
   </view>
+
+  <view class="recording-auth-modal" wx:if="{{showRecordingAuth}}">
+    <view class="recording-auth-content">
+      <view class="recording-auth-title">视频录制授权</view>
+      <view class="recording-auth-desc">医生请求对本次会诊进行视频录制，录制内容将加密保存90天。</view>
+      <view class="recording-auth-actions">
+        <view class="auth-btn auth-reject" bindtap="respondRecordingAuth" data-authorized="{{false}}">拒绝</view>
+        <view class="auth-btn auth-approve" bindtap="respondRecordingAuth" data-authorized="{{true}}">同意</view>
+      </view>
+    </view>
+  </view>
 </view>

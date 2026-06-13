@@ -188,3 +188,72 @@ INSERT INTO t_user (username, password, real_name, phone, role, open_id, hospita
 INSERT INTO t_patient (user_id, name, gender, age, medical_card_no, hospital_id, campus_id, open_id) VALUES
 (4, '王患者', 1, 45, 'MC20240001', 1, 1, 'oTestOpenId001'),
 (5, '刘患者', 0, 32, 'MC20240002', 2, 3, 'oTestOpenId002');
+
+CREATE TABLE t_video_recording (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    consultation_id BIGINT NOT NULL,
+    doctor_id BIGINT NOT NULL,
+    patient_id BIGINT NOT NULL,
+    status INT NOT NULL DEFAULT 0,
+    segment_duration INT DEFAULT 300,
+    total_segments INT DEFAULT 0,
+    total_duration INT DEFAULT 0,
+    encryption_key VARCHAR(512),
+    encryption_iv VARCHAR(128),
+    hls_playlist_url VARCHAR(512),
+    hls_bucket VARCHAR(128),
+    hls_object_name VARCHAR(512),
+    doctor_authorized TINYINT DEFAULT 0,
+    patient_authorized TINYINT DEFAULT 0,
+    watermark_text VARCHAR(256),
+    expire_time DATETIME NOT NULL,
+    start_time DATETIME,
+    end_time DATETIME,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (consultation_id) REFERENCES t_consultation(id),
+    FOREIGN KEY (doctor_id) REFERENCES t_doctor(id),
+    FOREIGN KEY (patient_id) REFERENCES t_patient(id),
+    INDEX idx_consultation_id (consultation_id),
+    INDEX idx_status (status),
+    INDEX idx_expire_time (expire_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE t_video_segment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    recording_id BIGINT NOT NULL,
+    consultation_id BIGINT NOT NULL,
+    segment_index INT NOT NULL,
+    file_name VARCHAR(256) NOT NULL,
+    bucket_name VARCHAR(128) NOT NULL,
+    object_name VARCHAR(512) NOT NULL,
+    file_size BIGINT DEFAULT 0,
+    duration INT DEFAULT 0,
+    encryption_iv VARCHAR(128),
+    checksum VARCHAR(128),
+    upload_status INT DEFAULT 0,
+    upload_time DATETIME,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (recording_id) REFERENCES t_video_recording(id),
+    FOREIGN KEY (consultation_id) REFERENCES t_consultation(id),
+    INDEX idx_recording_id (recording_id),
+    INDEX idx_upload_status (upload_status),
+    UNIQUE KEY uk_recording_segment (recording_id, segment_index)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE t_video_playback_auth (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    recording_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    user_role VARCHAR(20) NOT NULL,
+    auth_token VARCHAR(512) NOT NULL,
+    expire_time DATETIME NOT NULL,
+    play_count INT DEFAULT 0,
+    last_play_time DATETIME,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (recording_id) REFERENCES t_video_recording(id),
+    FOREIGN KEY (user_id) REFERENCES t_user(id),
+    INDEX idx_recording_id (recording_id),
+    INDEX idx_auth_token (auth_token),
+    INDEX idx_expire_time (expire_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

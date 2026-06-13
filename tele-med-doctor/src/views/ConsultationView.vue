@@ -12,7 +12,20 @@
             <el-button :type="videoEnabled ? 'primary' : 'danger'" circle size="small" @click="toggleVideo">
               <el-icon><VideoCamera v-if="videoEnabled" /><VideoPause v-else /></el-icon>
             </el-button>
+            <el-button
+              :type="isRecording ? 'warning' : 'default'"
+              circle
+              size="small"
+              @click="handleRecordingToggle"
+              :disabled="consultationEnded"
+            >
+              <el-icon><VideoCameraFilled v-if="!isRecording" /><VideoPause v-else /></el-icon>
+            </el-button>
             <el-button type="danger" size="small" @click="handleEndConsultation" :disabled="consultationEnded">结束问诊</el-button>
+          </div>
+          <div v-if="isRecording" class="recording-watermark">
+            <span class="recording-dot"></span>
+            {{ recordingWatermarkText }}
           </div>
           <div class="resize-handle" @mousedown="startResize"></div>
         </div>
@@ -284,6 +297,32 @@
         </el-tab-pane>
       </el-tabs>
     </div>
+
+    <el-dialog
+      v-model="showRecordingAuthDialog"
+      title="视频录制授权"
+      width="400px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+    >
+      <div class="recording-auth-content">
+        <p>医生请求对本次会诊进行视频录制，录制内容将加密保存90天。</p>
+        <p class="auth-hint">请确认您同意本次录制：</p>
+        <div class="auth-status">
+          <el-tag :type="recordingDoctorAuth ? 'success' : 'info'" size="small">
+            医生端 {{ recordingDoctorAuth ? '已授权' : '待授权' }}
+          </el-tag>
+          <el-tag :type="recordingPatientAuth ? 'success' : 'info'" size="small">
+            患者端 {{ recordingPatientAuth ? '已授权' : '待授权' }}
+          </el-tag>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="handleRecordingAuth(false)">拒绝录制</el-button>
+        <el-button type="primary" @click="handleRecordingAuth(true)">同意录制</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -298,12 +337,14 @@ import {
   deleteDicomImage
 } from '@/api/dicom'
 import { getWhiteboardHistory } from '@/api/whiteboard'
+import { startRecording as startRecordingApi, authorizeRecording } from '@/api/video'
 import { SignalingWebSocket } from '@/utils/websocket'
 import { JanusVideoRoom } from '@/utils/janus'
+import { VideoRecorder } from '@/utils/videoRecorder'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Microphone, Mute, VideoCamera, VideoPause, Picture, Upload, List,
-  ChatDotRound, Delete, Key, CopyDocument, Document, Brush
+  ChatDotRound, Delete, Key, CopyDocument, Document, Brush, VideoCameraFilled
 } from '@element-plus/icons-vue'
 import type {
   ChatMessage, SignalingMessage, DicomImage,
@@ -366,6 +407,15 @@ const signatureList = ref<ConsultationSignatureVO[]>([])
 const currentSignerInfo = ref<ConsultationSignatureVO | null>(null)
 const isMyTurn = ref(false)
 const signingInProgress = ref(false)
+
+const isRecording = ref(false)
+const showRecordingAuthDialog = ref(false)
+const recordingDoctorAuth = ref(false)
+const recordingPatientAuth = ref(false)
+const recordingWatermarkText = ref('录制中')
+const pendingRecordingId = ref<number | null>(null)
+
+let videoRecorder: VideoRecorder | null = null
 
 let videoRoom: JanusVideoRoom | null = null
 let signaling: SignalingWebSocket | null = null
@@ -443,6 +493,121 @@ const toggleAudio = () => {
 
 const toggleVideo = () => {
   videoEnabled.value = videoRoom?.toggleVideo() ?? !videoEnabled.value
+}
+
+const handleRecordingToggle = async () => {
+  if (isRecording.value) {
+    try {
+      await videoRecorder?.stop()
+      isRecording.value = false
+      recordingWatermarkText.value = '录制中'
+      ElMessage.success('录制已停止，视频正在处理中')
+    } catch {
+      ElMessage.error('停止录制失败')
+    }
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      '录制视频需要双方同意授权，将向患者端发送录制授权请求。是否开始？',
+      '视频录制',
+      { confirmButtonText: '开始录制', cancelButtonText: '取消', type: 'info' }
+    )
+  } catch {
+    return
+  }
+
+  try {
+    const res = await startRecordingApi(consultationId, userIdNum)
+    const recording = res.data
+    pendingRecordingId.value = recording.id
+    recordingDoctorAuth.value = true
+    recordingPatientAuth.value = false
+    showRecordingAuthDialog.value = true
+
+    if (signaling) {
+      signaling.send({
+        type: 'video-recording-request',
+        from: userId,
+        to: '',
+        roomId: String(consultationId),
+        payload: {
+          consultationId,
+          doctorId: userIdNum,
+          recordingId: recording.id,
+          watermarkText: recording.watermarkText
+        },
+        timestamp: Date.now()
+      })
+    }
+  } catch {
+    ElMessage.error('发起录制失败')
+  }
+}
+
+const handleRecordingAuth = async (authorized: boolean) => {
+  showRecordingAuthDialog.value = false
+
+  if (signaling && pendingRecordingId.value) {
+    signaling.send({
+      type: 'video-recording-auth',
+      from: userId,
+      to: '',
+      roomId: String(consultationId),
+      payload: {
+        consultationId,
+        recordingId: pendingRecordingId.value,
+        userRole: 'DOCTOR',
+        userId: userIdNum,
+        authorized
+      },
+      timestamp: Date.now()
+    })
+  }
+
+  if (!authorized) {
+    pendingRecordingId.value = null
+    recordingDoctorAuth.value = false
+    ElMessage.info('已拒绝录制')
+    return
+  }
+
+  recordingDoctorAuth.value = true
+
+  if (recordingPatientAuth.value && pendingRecordingId.value) {
+    await beginActualRecording(pendingRecordingId.value)
+  }
+}
+
+const beginActualRecording = async (recordingId: number) => {
+  try {
+    const localStream = localVideoRef.value?.srcObject as MediaStream | null
+    if (!localStream) {
+      ElMessage.error('无法获取本地视频流')
+      return
+    }
+
+    videoRecorder = new VideoRecorder(consultationId, {
+      watermarkText: `录制中 - 远程会诊`,
+      onSegmentUploaded: (index) => {
+        console.log(`视频片段 ${index} 已上传`)
+      },
+      onError: (error) => {
+        console.error('录制错误:', error)
+        ElMessage.error('录制出错: ' + error.message)
+      }
+    })
+
+    await videoRecorder.start(recordingId, localStream)
+    isRecording.value = true
+    recordingWatermarkText.value = videoRecorder.getWatermarkText()
+    showRecordingAuthDialog.value = false
+    ElMessage.success('录制已开始')
+  } catch (e) {
+    ElMessage.error('开始录制失败')
+    isRecording.value = false
+  }
 }
 
 const handleEndConsultation = async () => {
@@ -751,6 +916,51 @@ const handleSignalingMessage = (message: SignalingMessage) => {
   if (message.type === 'offer' || message.type === 'answer' || message.type === 'ice-candidate') {
     videoRoom?.handleSignalingMessage(message, userId)
   }
+
+  if (message.type === 'video-recording-request') {
+    const payload = message.payload as any
+    if (payload && !isRecording.value) {
+      pendingRecordingId.value = payload.recordingId
+      recordingDoctorAuth.value = true
+      recordingPatientAuth.value = false
+      showRecordingAuthDialog.value = true
+    }
+  }
+
+  if (message.type === 'video-recording-status') {
+    const payload = message.payload as any
+    if (payload) {
+      recordingDoctorAuth.value = payload.doctorAuthorized ?? false
+      recordingPatientAuth.value = payload.patientAuthorized ?? false
+
+      if (recordingDoctorAuth.value && recordingPatientAuth.value && pendingRecordingId.value && !isRecording.value) {
+        beginActualRecording(pendingRecordingId.value)
+      }
+
+      if (!recordingDoctorAuth.value || !recordingPatientAuth.value) {
+        if (payload.status === 6) {
+          showRecordingAuthDialog.value = false
+          pendingRecordingId.value = null
+          ElMessage.info('录制授权已被拒绝')
+        }
+      }
+    }
+  }
+
+  if (message.type === 'video-recording-auth') {
+    const payload = message.payload as any
+    if (payload && Number(message.from) !== userIdNum) {
+      recordingPatientAuth.value = payload.authorized ?? false
+      if (recordingPatientAuth.value && recordingDoctorAuth.value && pendingRecordingId.value && !isRecording.value) {
+        beginActualRecording(pendingRecordingId.value)
+      }
+      if (!payload.authorized) {
+        showRecordingAuthDialog.value = false
+        pendingRecordingId.value = null
+        ElMessage.info('患者端拒绝了录制授权')
+      }
+    }
+  }
 }
 
 let resizing = false
@@ -806,6 +1016,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (videoRecorder && videoRecorder.getIsActive()) {
+    videoRecorder.destroy()
+    videoRecorder = null
+  }
   videoRoom?.leaveRoom()
   videoRoom = null
   signaling?.disconnect()
@@ -1244,5 +1458,57 @@ onUnmounted(() => {
 
 .progress-item {
   display: inline-flex;
+}
+
+.recording-watermark {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 0, 0, 0.85);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  z-index: 25;
+  animation: watermark-pulse 2s infinite;
+}
+
+.recording-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  animation: dot-blink 1s infinite;
+}
+
+@keyframes watermark-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.recording-auth-content p {
+  margin: 8px 0;
+  color: #303133;
+  font-size: 14px;
+}
+
+.auth-hint {
+  font-weight: 600;
+  color: #e6a23c;
+}
+
+.auth-status {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
 }
 </style>

@@ -6,7 +6,8 @@
     "pages/conclusion/conclusion",
     "pages/face-verify/face-verify",
     "pages/cross-campus-appointment/cross-campus-appointment",
-    "pages/cross-campus-list/cross-campus-list"
+    "pages/cross-campus-list/cross-campus-list",
+    "pages/video-playback/video-playback"
   ],
   "window": {
     "navigationBarTitleText": "远程会诊",
