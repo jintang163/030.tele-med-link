@@ -146,29 +146,18 @@ public class PdfServiceImpl implements PdfService {
                         .setMarginTop(10)
                         .setMarginBottom(10));
 
-                for (int i = 0; i < dto.getImageUrls().size(); i++) {
-                    String imageUrl = dto.getImageUrls().get(i);
-                    try {
-                        byte[] imageBytes = minioService.downloadFile(defaultBucket, imageUrl);
-                        ImageData imageData = ImageDataFactory.create(imageBytes);
-                        Image img = new Image(imageData);
-                        float maxWidth = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
-                        float maxHeight = 300;
-                        if (img.getImageWidth() > maxWidth) {
-                            img.scaleToFit(maxWidth, maxHeight);
-                        }
-                        img.setMarginBottom(10);
-                        document.add(img);
+                addImageSection(document, dto.getImageUrls(), font, defaultBucket);
+            }
 
-                        Paragraph imgDesc = new Paragraph("图" + (i + 1))
-                                .setFont(font)
-                                .setFontSize(10)
-                                .setTextAlignment(TextAlignment.CENTER)
-                                .setMarginBottom(15);
-                        document.add(imgDesc);
-                    } catch (Exception e) {
-                    }
-                }
+            if (dto.getWhiteboardImageUrls() != null && !dto.getWhiteboardImageUrls().isEmpty()) {
+                document.add(new Paragraph("\n白板截图")
+                        .setFont(font)
+                        .setFontSize(14)
+                        .setBold()
+                        .setMarginTop(10)
+                        .setMarginBottom(10));
+
+                addImageSection(document, dto.getWhiteboardImageUrls(), font, "tele-med-whiteboard");
             }
 
             float currentY = pdfDoc.getLastPage().getPageSize().getHeight() - 100;
@@ -320,6 +309,32 @@ public class PdfServiceImpl implements PdfService {
             cell.setBackgroundColor(ColorConstants.LIGHT_GRAY);
         }
         return cell;
+    }
+
+    private void addImageSection(Document document, List<String> imageUrls, PdfFont font, String bucketName) {
+        float maxWidth = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
+        float maxHeight = 300;
+        for (int i = 0; i < imageUrls.size(); i++) {
+            String imageUrl = imageUrls.get(i);
+            try {
+                byte[] imageBytes = minioService.downloadFile(bucketName, imageUrl);
+                ImageData imageData = ImageDataFactory.create(imageBytes);
+                Image img = new Image(imageData);
+                if (img.getImageWidth() > maxWidth) {
+                    img.scaleToFit(maxWidth, maxHeight);
+                }
+                img.setMarginBottom(10);
+                document.add(img);
+
+                Paragraph imgDesc = new Paragraph("图" + (i + 1))
+                        .setFont(font)
+                        .setFontSize(10)
+                        .setTextAlignment(TextAlignment.CENTER)
+                        .setMarginBottom(15);
+                document.add(imgDesc);
+            } catch (Exception e) {
+            }
+        }
     }
 
     private byte[] decodeBase64Image(String base64Data) {

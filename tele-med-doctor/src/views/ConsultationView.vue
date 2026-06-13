@@ -234,7 +234,7 @@
             <el-input
               v-model="conclusionContent"
               type="textarea"
-              :rows="8"
+              :rows="6"
               placeholder="请输入问诊结论..."
             />
             <el-button
@@ -245,6 +245,41 @@
             >
               提交结论
             </el-button>
+
+            <div v-if="signatureWorkflowActive" class="signature-section">
+              <el-divider>电子签名</el-divider>
+              <div v-if="currentSignerInfo" class="current-signer-info">
+                <el-tag :type="isMyTurn ? 'success' : 'info'" size="small">
+                  {{ isMyTurn ? '轮到您签名' : `等待 ${currentSignerInfo.doctorName} 签名` }}
+                </el-tag>
+              </div>
+              <div v-if="isMyTurn" class="signature-area">
+                <HandwrittenSignature
+                  ref="signaturePadRef"
+                  title="手写签名"
+                  :height="160"
+                  @confirm="handleSignatureConfirm"
+                />
+                <div class="signature-progress">
+                  <span class="progress-label">签名进度：</span>
+                  <span v-for="sig in signatureList" :key="sig.id" class="progress-item">
+                    <el-tag :type="sig.signStatus === 1 ? 'success' : 'info'" size="small">
+                      {{ sig.doctorName || `医生${sig.doctorId}` }}
+                      {{ sig.signStatus === 1 ? '✓' : '待签' }}
+                    </el-tag>
+                  </span>
+                </div>
+              </div>
+              <div v-else-if="signatureList.length > 0" class="signature-progress">
+                <span class="progress-label">签名进度：</span>
+                <span v-for="sig in signatureList" :key="sig.id" class="progress-item">
+                  <el-tag :type="sig.signStatus === 1 ? 'success' : 'info'" size="small">
+                    {{ sig.doctorName || `医生${sig.doctorId}` }}
+                    {{ sig.signStatus === 1 ? '✓' : '待签' }}
+                  </el-tag>
+                </span>
+              </div>
+            </div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -278,6 +313,16 @@ import type {
 import DicomImageViewer from '@/components/DicomImageViewer.vue'
 import DicomUploader from '@/components/DicomUploader.vue'
 import WhiteboardCanvas from '@/components/WhiteboardCanvas.vue'
+import HandwrittenSignature from '@/components/HandwrittenSignature.vue'
+import {
+  generateSm2KeyPair,
+  sm2SignData,
+  getConsultationSignatures,
+  getCurrentSigner,
+  doctorSign as doctorSignApi,
+  type ConsultationSignatureVO,
+  type DoctorSignParams
+} from '@/api/signature'
 
 const route = useRoute()
 const router = useRouter()
@@ -314,6 +359,13 @@ const whiteboardEnabled = ref(false)
 const activeWhiteboardMode = ref<'dicom' | 'blank'>('dicom')
 const whiteboardRef = ref<InstanceType<typeof WhiteboardCanvas> | null>(null)
 const blankWhiteboardRef = ref<InstanceType<typeof WhiteboardCanvas> | null>(null)
+const signaturePadRef = ref<InstanceType<typeof HandwrittenSignature> | null>(null)
+
+const signatureWorkflowActive = ref(false)
+const signatureList = ref<ConsultationSignatureVO[]>([])
+const currentSignerInfo = ref<ConsultationSignatureVO | null>(null)
+const isMyTurn = ref(false)
+const signingInProgress = ref(false)
 
 let videoRoom: JanusVideoRoom | null = null
 let signaling: SignalingWebSocket | null = null
@@ -413,13 +465,66 @@ const handleSubmitConclusion = async () => {
   submittingConclusion.value = true
   try {
     await finishConsultation(consultationId, conclusionContent.value)
-    ElMessage.success('结论已提交')
-    showConclusion.value = false
-    setTimeout(() => router.back(), 1500)
+    ElMessage.success('结论已提交，请进行电子签名')
+    await loadSignatureWorkflow()
   } catch {
     ElMessage.error('提交结论失败')
   } finally {
     submittingConclusion.value = false
+  }
+}
+
+const loadSignatureWorkflow = async () => {
+  try {
+    const res = await getConsultationSignatures(consultationId)
+    signatureList.value = res.data || []
+    if (signatureList.value.length > 0) {
+      signatureWorkflowActive.value = true
+      const currentRes = await getCurrentSigner(consultationId)
+      currentSignerInfo.value = currentRes.data || null
+      isMyTurn.value = currentSignerInfo.value?.doctorId === userIdNum
+    }
+  } catch {
+    // ignore
+  }
+}
+
+const handleSignatureConfirm = async (signatureBase64: string) => {
+  if (signingInProgress.value) return
+  signingInProgress.value = true
+  try {
+    const keyPairRes = await generateSm2KeyPair()
+    const publicKey = keyPairRes.data.publicKey
+    const privateKey = keyPairRes.data.privateKey
+
+    const conclusionHash = conclusionContent.value
+    const signRes = await sm2SignData(conclusionHash, privateKey)
+    const sm2Signature = signRes.data.signature
+
+    const params: DoctorSignParams = {
+      consultationId,
+      doctorId: userIdNum,
+      signatureData: signatureBase64,
+      signPositionX: 400,
+      signPositionY: 80 + (currentSignerInfo.value?.signOrder ?? 1) * 70,
+      signWidth: 150,
+      signHeight: 50,
+      signPage: 1,
+      signReason: '远程会诊电子签名',
+      signLocation: '远程会诊系统',
+      sm2PublicKey: publicKey,
+      sm2PrivateKey: privateKey,
+      sm2Signature
+    }
+
+    await doctorSignApi(params)
+    ElMessage.success('签名成功')
+    signaturePadRef.value?.clearCanvas()
+    await loadSignatureWorkflow()
+  } catch (err: any) {
+    ElMessage.error(err?.message || '签名失败')
+  } finally {
+    signingInProgress.value = false
   }
 }
 
@@ -1110,5 +1215,34 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background: #fff;
+}
+
+.signature-section {
+  margin-top: 16px;
+}
+
+.current-signer-info {
+  margin-bottom: 12px;
+}
+
+.signature-area {
+  margin-top: 8px;
+}
+
+.signature-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.progress-item {
+  display: inline-flex;
 }
 </style>

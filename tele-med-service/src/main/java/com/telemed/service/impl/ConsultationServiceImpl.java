@@ -5,15 +5,18 @@ import com.telemed.common.exception.BusinessException;
 import com.telemed.common.vo.ConsultationVO;
 import com.telemed.model.entity.Consultation;
 import com.telemed.model.entity.ConsultationConclusion;
+import com.telemed.model.entity.ConsultationDoctor;
 import com.telemed.model.entity.Doctor;
 import com.telemed.model.entity.Patient;
 import com.telemed.model.entity.User;
 import com.telemed.model.repository.ConsultationConclusionRepository;
+import com.telemed.model.repository.ConsultationDoctorRepository;
 import com.telemed.model.repository.ConsultationRepository;
 import com.telemed.model.repository.DoctorRepository;
 import com.telemed.model.repository.PatientRepository;
 import com.telemed.model.repository.UserRepository;
 import com.telemed.service.ConsultationService;
+import com.telemed.service.ConsultationSignatureService;
 import com.telemed.service.MinioService;
 import com.telemed.service.SignalingService;
 import com.telemed.service.AppointmentService;
@@ -22,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,12 +36,14 @@ public class ConsultationServiceImpl implements ConsultationService {
 
     private final ConsultationRepository consultationRepository;
     private final ConsultationConclusionRepository consultationConclusionRepository;
+    private final ConsultationDoctorRepository consultationDoctorRepository;
     private final MinioService minioService;
     private final SignalingService signalingService;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final UserRepository userRepository;
     private final AppointmentService appointmentService;
+    private final ConsultationSignatureService consultationSignatureService;
 
     @Override
     @Transactional
@@ -101,6 +107,29 @@ public class ConsultationServiceImpl implements ConsultationService {
             conclusion.setContent(conclusionContent);
             conclusion.setFileUrl(fileUrl);
             consultationConclusionRepository.save(conclusion);
+        }
+
+        List<ConsultationDoctor> consultationDoctors = consultationDoctorRepository
+                .findByConsultationId(consultationId);
+        if (consultationDoctors != null && !consultationDoctors.isEmpty()) {
+            List<Long> doctorIds = consultationDoctors.stream()
+                    .sorted(Comparator.comparing(ConsultationDoctor::getCreateTime,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .map(ConsultationDoctor::getDoctorId)
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (consultation.getDoctorId() != null
+                    && !doctorIds.contains(consultation.getDoctorId())) {
+                doctorIds.add(0, consultation.getDoctorId());
+            }
+            if (!doctorIds.isEmpty()) {
+                consultationSignatureService.initSignatureWorkflow(consultationId, doctorIds);
+            }
+        } else {
+            if (consultation.getDoctorId() != null) {
+                consultationSignatureService.initSignatureWorkflow(
+                        consultationId, List.of(consultation.getDoctorId()));
+            }
         }
 
         appointmentService.completeAppointmentByConsultationId(consultation.getId());

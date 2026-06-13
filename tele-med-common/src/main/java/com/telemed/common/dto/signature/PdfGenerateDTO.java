@@ -13,6 +13,8 @@ public class PdfGenerateDTO {
 
     private List<String> imageUrls;
 
+    private List<String> whiteboardImageUrls;
+
     private String patientName;
 
     private String patientIdCard;

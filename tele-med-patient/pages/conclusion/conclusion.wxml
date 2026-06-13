@@ -38,7 +38,29 @@
     </view>
   </view>
 
-  <view class="card empty-conclusion" wx:else>
+  <view class="card empty-conclusion" wx:elif="{{!conclusion}}">
     <text class="empty-text">暂无会诊结论</text>
+  </view>
+
+  <view class="card signature-card" wx:if="{{signatureList.length > 0}}">
+    <view class="signature-title">电子签名状态</view>
+
+    <view class="signature-list">
+      <view class="signature-item" wx:for="{{signatureList}}" wx:key="id">
+        <view class="sig-doctor">{{item.doctorName || '医生'}}</view>
+        <view class="sig-status sig-{{item.signStatus === 1 ? 'signed' : 'pending'}}">
+          {{item.signStatus === 1 ? '已签名' : '待签名'}}
+        </view>
+      </view>
+    </view>
+
+    <view class="pdf-download-area" wx:if="{{allSigned}}">
+      <button class="pdf-btn" type="primary" bindtap="downloadPdf" loading="{{pdfDownloading}}">
+        下载认定书PDF
+      </button>
+    </view>
+    <view class="pdf-waiting" wx:else>
+      <text class="waiting-text">等待全部医生签名后可下载认定书</text>
+    </view>
   </view>
 </view>

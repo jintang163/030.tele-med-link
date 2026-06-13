@@ -2,6 +2,7 @@ package com.telemed.service.impl;
 
 import cn.hutool.core.codec.Base64;
 import com.telemed.common.constant.SignatureStatus;
+import com.telemed.common.constant.WhiteboardConstants;
 import com.telemed.common.dto.signature.ConsultationSignDTO;
 import com.telemed.common.dto.signature.PdfGenerateDTO;
 import com.telemed.common.exception.BusinessException;
@@ -25,6 +26,7 @@ import com.telemed.model.repository.UserRepository;
 import com.telemed.service.ConsultationSignatureService;
 import com.telemed.service.MinioService;
 import com.telemed.service.PdfService;
+import com.telemed.service.WhiteboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -51,6 +53,7 @@ public class ConsultationSignatureServiceImpl implements ConsultationSignatureSe
     private final HospitalRepository hospitalRepository;
     private final PdfService pdfService;
     private final MinioService minioService;
+    private final WhiteboardService whiteboardService;
 
     @Value("${minio.bucketName}")
     private String defaultBucket;
@@ -96,6 +99,9 @@ public class ConsultationSignatureServiceImpl implements ConsultationSignatureSe
         pdfDTO.setDoctorTitle(doctorTitle);
         pdfDTO.setDepartment(doctor != null ? doctor.getDepartment() : "");
         pdfDTO.setHospitalName(hospitalName);
+
+        List<String> whiteboardImageUrls = collectWhiteboardSnapshots(consultation);
+        pdfDTO.setWhiteboardImageUrls(whiteboardImageUrls);
 
         return pdfService.generateConsultationPdf(pdfDTO);
     }
@@ -161,7 +167,9 @@ public class ConsultationSignatureServiceImpl implements ConsultationSignatureSe
         signature.setSignatureData(signDTO.getSignatureData());
         consultationSignatureRepository.save(signature);
 
-        boolean allSigned = isAllSignedInternal(allSignatures);
+        List<ConsultationSignature> refreshedSignatures = consultationSignatureRepository
+                .findByConsultationIdOrderBySignOrderAsc(signDTO.getConsultationId());
+        boolean allSigned = isAllSignedInternal(refreshedSignatures);
         if (allSigned) {
             String pdfObjectName = pdfService.savePdfToMinio(currentPdf, consultation.getConsultationNo());
 
@@ -262,6 +270,41 @@ public class ConsultationSignatureServiceImpl implements ConsultationSignatureSe
                 .filter(s -> s.getSignStatus() == null || s.getSignStatus() == SignatureStatus.PENDING.getCode())
                 .min(Comparator.comparingInt(ConsultationSignature::getSignOrder))
                 .orElse(null);
+    }
+
+    private List<String> collectWhiteboardSnapshots(Consultation consultation) {
+        List<String> snapshotUrls = new ArrayList<>();
+        if (consultation.getRoomId() == null) {
+            return snapshotUrls;
+        }
+        try {
+            String dicomHistoryKey = WhiteboardConstants.WHITEBOARD_SNAPSHOT_PREFIX
+                    + consultation.getRoomId() + ":DICOM";
+            String blankHistoryKey = WhiteboardConstants.WHITEBOARD_SNAPSHOT_PREFIX
+                    + consultation.getRoomId() + ":BLANK";
+
+            collectSnapshotFromHistory(consultation.getRoomId(), "DICOM", snapshotUrls);
+            collectSnapshotFromHistory(consultation.getRoomId(), "BLANK", snapshotUrls);
+        } catch (Exception e) {
+        }
+        return snapshotUrls;
+    }
+
+    private void collectSnapshotFromHistory(String roomId, String source, List<String> snapshotUrls) {
+        try {
+            var history = whiteboardService.getHistory(roomId, source, null, 50);
+            if (history != null && history.getOperations() != null) {
+                for (var op : history.getOperations()) {
+                    if (op.getProperties() != null && op.getProperties().containsKey("snapshotUrl")) {
+                        String url = (String) op.getProperties().get("snapshotUrl");
+                        if (url != null && !url.isEmpty()) {
+                            snapshotUrls.add(url);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+        }
     }
 
     private boolean isAllSignedInternal(List<ConsultationSignature> signatures) {

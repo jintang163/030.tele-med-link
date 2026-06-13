@@ -2,6 +2,7 @@ package com.telemed.web.controller;
 
 import cn.hutool.core.codec.Base64;
 import com.telemed.common.dto.signature.ConsultationSignDTO;
+import com.telemed.common.exception.BusinessException;
 import com.telemed.common.result.Result;
 import com.telemed.common.vo.signature.ConsultationSignatureVO;
 import com.telemed.service.ConsultationSignatureService;
@@ -81,6 +82,25 @@ public class SignatureController {
 
         Map<String, String> result = new HashMap<>();
         result.put("pdfBase64", pdfBase64);
+        return Result.ok(result);
+    }
+
+    @GetMapping("/patient-pdf-url/{consultationId}")
+    public Result<Map<String, Object>> getPatientPdfUrl(@PathVariable Long consultationId) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            boolean allSigned = consultationSignatureService.isAllSigned(consultationId);
+            result.put("allSigned", allSigned);
+            if (allSigned) {
+                String url = consultationSignatureService.getFinalPdfUrl(consultationId);
+                result.put("url", url);
+            }
+            List<ConsultationSignatureVO> signatures = consultationSignatureService.getConsultationSignatures(consultationId);
+            result.put("signatures", signatures);
+        } catch (BusinessException e) {
+            result.put("allSigned", false);
+            result.put("signatures", List.of());
+        }
         return Result.ok(result);
     }
 

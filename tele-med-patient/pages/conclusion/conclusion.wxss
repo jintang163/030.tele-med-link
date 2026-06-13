@@ -98,3 +98,73 @@
   font-size: 28rpx;
   color: #999;
 }
+
+.signature-card {
+  padding: 32rpx 24rpx;
+}
+
+.signature-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 24rpx;
+}
+
+.signature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.signature-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  background: #f8f8f8;
+  border-radius: 8rpx;
+}
+
+.sig-doctor {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.sig-status {
+  font-size: 24rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.sig-signed {
+  color: #52c41a;
+  background: #f6ffed;
+  border: 1rpx solid #b7eb8f;
+}
+
+.sig-pending {
+  color: #faad14;
+  background: #fffbe6;
+  border: 1rpx solid #ffe58f;
+}
+
+.pdf-download-area {
+  margin-top: 16rpx;
+}
+
+.pdf-btn {
+  width: 100%;
+  font-size: 30rpx;
+}
+
+.pdf-waiting {
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+.waiting-text {
+  font-size: 24rpx;
+  color: #999;
+}
